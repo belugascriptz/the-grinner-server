@@ -7,7 +7,7 @@ const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
 const PORT = process.env.PORT || 3000;
-const MAX_PLAYERS = 15;
+const MAX_PLAYERS = 8;
 
 let players = new Map();
 
