@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+  <title>The Grinner VR</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="hud">
+    <div class="brand">THE GRINNER <span>VR</span></div>
+    <div id="status">Connecting…</div>
+    <div id="round">Round 0</div>
+    <div id="players">Players: 0 / 15</div>
+    <div class="buttons">
+      <button id="vote">Vote: Yellow Hall</button>
+      <button id="start">Start test round</button>
+      <button id="owner">Owner menu</button>
+    </div>
+    <div id="monsterPanel" hidden>
+      <strong>MONSTER ABILITIES</strong>
+      <div class="buttons">
+        <button data-action="punch">Punch</button>
+        <button data-action="throw">Grab &amp; throw</button>
+        <button data-action="grab">Head grab</button>
+        <button data-action="glitch">Glitch attack</button>
+      </div>
+      <small>Abilities affect the nearest player within reach. Cooldown: 1.8 seconds.</small>
+    </div>
+    <div id="ownerPanel" hidden>
+      <input id="ownerKey" type="password" placeholder="Owner key (set by server host)">
+      <input id="dummyCount" type="number" min="0" max="14" value="4">
+      <button id="spawn">Spawn stationary dummies</button>
+      <small>Temporary key protection; not linked to a Meta account.</small>
+    </div>
+    <div id="notice">Quest browser: press Enter VR. Prototype effects are stylized.</div>
+  </div>
+  <div id="hitOverlay"></div>
+  <div id="crosshair"></div>
+  <script src="/socket.io/socket.io.js"></script>
+  <script type="module" src="game.js"></script>
+</body>
+</html>

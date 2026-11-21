@@ -1,8 +1,8 @@
 {
-  "name": "the-grinner-server",
-  "version": "1.0.0",
-  "description": "The Grinner VR multiplayer server",
-  "main": "server.js",
+  "name": "the-grinner-vr",
+  "version": "0.1.0",
+  "private": true,
+  "description": "The Grinner VR browser prototype",
   "scripts": {
     "start": "node server.js"
   },
