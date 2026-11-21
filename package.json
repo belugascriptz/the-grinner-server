@@ -1,8 +1,9 @@
 {
   "name": "the-grinner-vr",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
-  "description": "The Grinner VR browser prototype",
+  "description": "The Grinner VR multiplayer prototype",
+  "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },

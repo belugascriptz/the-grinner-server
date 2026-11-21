@@ -1,25 +1,32 @@
-# The Grinner VR — Starter Prototype 0.1
+# The Grinner VR — playable prototype
 
-This is a first browser-based Quest prototype, not a finished game.
+This is an early browser-based WebXR prototype, not a finished commercial game.
 
 ## Included
-- Procedural yellow Backrooms-style test room.
-- WebXR entry button for Meta Quest Browser.
-- Basic controller-thumbstick movement and turning.
-- Desktop keyboard fallback (WASD / arrow keys).
-- WebSocket connection to this same Render service.
-- Basic remote player avatars and an 8-connection server cap.
+- Express + WebSocket server
+- Multiple automatically created rooms, 12 players maximum per room
+- Lobby, map voting (Forest/Caves/Facility), mode voting (Classic/Infection/Impostor)
+- Simple legless monkey-style avatars and a separate white Grinner-style avatar
+- Basic WebXR entry, controller-based arm-swing movement prototype
+- Lobby computer with colour and turning settings
+- Lobby mirror panel
+- Temporary public test menu (press Y on desktop; use keyboard Y while testing)
 
-## Not included yet
-- Gorilla Tag arm-swing locomotion.
-- Monster role, grabbing, attacks, respawn, voice chat.
-- Visual admin panel or Meta account verification.
-- Persistent bans, matchmaking rooms, anti-cheat, or saved progress.
+## Run locally
+1. Install Node.js 18 or newer.
+2. Run `npm install`.
+3. Run `npm start`.
+4. Open `http://localhost:3000`.
 
-## Deploy
-1. Put `server.js`, `package.json`, and the `public` folder in the root of the GitHub repo.
-2. In Render, use Build Command `npm install` and Start Command `npm start`.
-3. The site and WebSocket server run on the same Render URL.
-4. Open the HTTPS Render URL in Meta Quest Browser and press **Enter test world**, then **Enter VR**.
+## Deploy on Render
+- Create a Web Service connected to this repository.
+- Build command: `npm install`
+- Start command: `npm start`
+- The server uses Render's `PORT` automatically.
 
-The browser client uses the WebXR API and loads Three.js from a CDN, so the Quest needs internet access.
+## Important limitations
+- This is a prototype. VR locomotion, mirror reflection, multiplayer synchronization, collision/tagging, map geometry, and controller bindings need testing and refinement on a real Quest.
+- The lobby computer's browser controls work as a flat UI panel in this prototype; in-world ray-pointer interaction is not fully implemented yet.
+- Rooms are in-memory on one server process. For production scale, use a room/matchmaking service and persistent/shared state.
+- The temporary public admin menu is intentionally unauthenticated for private testing only. Before public release, add server-verified owner authentication and remove public admin actions.
+- Do not expose an admin token in client-side code.
