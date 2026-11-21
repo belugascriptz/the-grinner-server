@@ -2,31 +2,13 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
   <title>The Grinner VR</title>
-  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div id="loading">THE GRINNER VR<br><small>Loading 3D lobby...</small></div>
-  <div id="hud">
-    <div id="roomInfo">Connecting...</div>
-    <div id="help">Point at a wall board and press your controller trigger to vote.</div>
-    <div id="status">Vote for a map</div>
-    <div id="controls">
-      <button id="enterVR">ENTER VR</button>
-      <button id="desktopMode">DESKTOP TEST</button>
-      <button id="adminToggle">ADMIN (Y)</button>
-    </div>
-    <div id="adminPanel" class="hidden">
-      <button id="advanceMode">NEXT: GAME MODES</button>
-      <button id="startRound">START ROUND</button>
-      <button id="resetVote">RESET MAP VOTE</button>
-    </div>
-    <div id="settings">
-      <label>Monkey colour <input id="colorPicker" type="color" value="#b7e2a0"></label>
-      <label>Turn <select id="turnMode"><option>Smooth</option><option>Snap</option><option>Off</option></select></label>
-    </div>
-  </div>
-  <script type="module" src="/game.js"></script>
+  <div id="connection">Connecting to lobby…</div>
+  <div id="crosshair"></div>
+  <script type="module" src="game.js"></script>
 </body>
 </html>

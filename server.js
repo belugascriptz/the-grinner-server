@@ -6,6 +6,7 @@ const path = require("path");
 const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
+
 app.use(express.static(path.join(__dirname, "public")));
 app.get("/health", (_req, res) => res.json({ ok: true, game: "The Grinner VR" }));
 
@@ -18,91 +19,86 @@ function makeRoom() {
     id: `room-${nextRoom++}`,
     players: new Map(),
     mapVotes: {},
-    modeVotes: {},
     phase: "map",
-    map: null,
-    mode: null
+    map: null
   };
   rooms.set(room.id, room);
   return room;
 }
 function findRoom() {
-  for (const room of rooms.values()) if (room.players.size < MAX_PLAYERS) return room;
+  for (const room of rooms.values()) {
+    if (room.players.size < MAX_PLAYERS) return room;
+  }
   return makeRoom();
 }
 function send(ws, data) {
   if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(data));
 }
-function broadcast(room, data) {
-  for (const player of room.players.values()) send(player.ws, data);
-}
 function snapshot(room) {
   return {
     type: "state",
     roomId: room.id,
+    players: [...room.players.values()].map(p => ({
+      id: p.id, x: p.x, y: p.y, z: p.z, color: p.color
+    })),
     count: room.players.size,
     maxPlayers: MAX_PLAYERS,
     phase: room.phase,
     map: room.map,
-    mode: room.mode,
-    mapVotes: room.mapVotes,
-    modeVotes: room.modeVotes
+    mapVotes: room.mapVotes
   };
 }
-wss.on("connection", (ws) => {
+function broadcast(room) {
+  const state = snapshot(room);
+  for (const p of room.players.values()) send(p.ws, state);
+}
+wss.on("connection", ws => {
   const room = findRoom();
   const id = Math.random().toString(36).slice(2, 10);
-  room.players.set(id, { ws, color: "#b7e2a0", name: "Player" });
+  const player = { id, ws, x: 0, y: 0, z: 4, color: "#b7e2a0" };
+  room.players.set(id, player);
   ws._room = room;
   ws._id = id;
-  send(ws, { type: "welcome", id, ...snapshot(room) });
-  broadcast(room, snapshot(room));
+  send(ws, { type: "welcome", id, roomId: room.id });
+  broadcast(room);
 
-  ws.on("message", (raw) => {
+  ws.on("message", raw => {
     let msg;
     try { msg = JSON.parse(raw.toString()); } catch { return; }
-    const player = room.players.get(id);
-    if (!player) return;
-
-    if (msg.type === "vote" && typeof msg.choice === "string") {
-      if (room.phase === "map" && ["forest", "caves", "facility"].includes(msg.choice)) {
-        room.mapVotes[id] = msg.choice;
-      } else if (room.phase === "mode" && ["classic", "infection", "impostor"].includes(msg.choice)) {
-        room.modeVotes[id] = msg.choice;
+    if (msg.type === "move") {
+      const x = Number(msg.x), y = Number(msg.y), z = Number(msg.z);
+      if ([x,y,z].every(Number.isFinite)) {
+        player.x = Math.max(-9, Math.min(9, x));
+        player.y = Math.max(0, Math.min(4, y));
+        player.z = Math.max(-9, Math.min(9, z));
+        broadcast(room);
       }
-      broadcast(room, snapshot(room));
-    }
-    if (msg.type === "color" && /^#[0-9a-fA-F]{6}$/.test(msg.color || "")) {
+    } else if (msg.type === "vote" && ["forest","caves","facility"].includes(msg.choice)) {
+      room.mapVotes[id] = msg.choice;
+      broadcast(room);
+    } else if (msg.type === "color" && /^#[0-9a-fA-F]{6}$/.test(msg.color || "")) {
       player.color = msg.color;
-      broadcast(room, { type: "playerColor", id, color: player.color });
-    }
-    if (msg.type === "startMapVote" && msg.admin === true) {
-      room.phase = "map"; room.mapVotes = {}; room.modeVotes = {}; room.map = null; room.mode = null;
-      broadcast(room, snapshot(room));
-    }
-    if (msg.type === "advanceMode" && msg.admin === true) {
-      room.map = mostVoted(room.mapVotes) || "forest";
-      room.phase = "mode";
-      broadcast(room, snapshot(room));
-    }
-    if (msg.type === "startRound" && msg.admin === true) {
-      room.mode = mostVoted(room.modeVotes) || "classic";
+      broadcast(room);
+    } else if (msg.type === "startMapVote" && msg.admin === true) {
+      room.phase = "map";
+      room.mapVotes = {};
+      room.map = null;
+      broadcast(room);
+    } else if (msg.type === "startRound" && msg.admin === true) {
+      const counts = {};
+      for (const vote of Object.values(room.mapVotes)) counts[vote] = (counts[vote] || 0) + 1;
+      room.map = Object.keys(counts).sort((a,b) => counts[b] - counts[a])[0] || "forest";
       room.phase = "playing";
-      broadcast(room, snapshot(room));
+      broadcast(room);
     }
   });
   ws.on("close", () => {
     room.players.delete(id);
     delete room.mapVotes[id];
-    delete room.modeVotes[id];
-    broadcast(room, snapshot(room));
+    broadcast(room);
     if (room.players.size === 0) rooms.delete(room.id);
   });
 });
-function mostVoted(votes) {
-  const counts = {};
-  for (const v of Object.values(votes)) counts[v] = (counts[v] || 0) + 1;
-  return Object.keys(counts).sort((a,b) => counts[b] - counts[a])[0];
-}
+
 const port = process.env.PORT || 10000;
 server.listen(port, "0.0.0.0", () => console.log(`The Grinner VR listening on ${port}`));
