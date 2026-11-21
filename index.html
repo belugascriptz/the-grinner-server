@@ -2,51 +2,31 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <title>The Grinner VR</title>
   <link rel="stylesheet" href="/style.css">
-  <script type="importmap">
-    {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/"}}
-  </script>
 </head>
 <body>
+  <div id="loading">THE GRINNER VR<br><small>Loading 3D lobby...</small></div>
   <div id="hud">
-    <div class="brand">THE GRINNER <span>VR</span></div>
-    <div id="status">Connecting…</div>
-    <div id="phase">LOBBY</div>
-    <div id="room"></div>
+    <div id="roomInfo">Connecting...</div>
+    <div id="help">Point at a wall board and press your controller trigger to vote.</div>
+    <div id="status">Vote for a map</div>
+    <div id="controls">
+      <button id="enterVR">ENTER VR</button>
+      <button id="desktopMode">DESKTOP TEST</button>
+      <button id="adminToggle">ADMIN (Y)</button>
+    </div>
+    <div id="adminPanel" class="hidden">
+      <button id="advanceMode">NEXT: GAME MODES</button>
+      <button id="startRound">START ROUND</button>
+      <button id="resetVote">RESET MAP VOTE</button>
+    </div>
+    <div id="settings">
+      <label>Monkey colour <input id="colorPicker" type="color" value="#b7e2a0"></label>
+      <label>Turn <select id="turnMode"><option>Smooth</option><option>Snap</option><option>Off</option></select></label>
+    </div>
   </div>
-  <div id="menu">
-    <h1>THE GRINNER</h1>
-    <p class="subtitle">A multiplayer VR chase game</p>
-    <label>Monkey colour <input id="colour" type="color" value="#55cc88"></label>
-    <label>Turning
-      <select id="turning"><option value="smooth">Smooth turn</option><option value="snap">Snap turn</option><option value="none">No turning</option></select>
-    </label>
-    <button id="enter">ENTER LOBBY</button>
-    <button id="vr" class="secondary">ENTER VR</button>
-    <p class="hint">On desktop: WASD to move, mouse to look. On Quest: use the VR button.</p>
-  </div>
-  <div id="computer" class="panel hidden">
-    <h2>LOBBY COMPUTER</h2>
-    <label>Colour <input id="colour2" type="color" value="#55cc88"></label>
-    <label>Turning
-      <select id="turning2"><option value="smooth">Smooth turn</option><option value="snap">Snap turn</option><option value="none">No turning</option></select>
-    </label>
-    <button id="changeLobby">FIND ANOTHER LOBBY</button>
-    <button id="closeComputer" class="secondary">CLOSE</button>
-  </div>
-  <div id="vote" class="panel hidden">
-    <h2 id="voteTitle">VOTE</h2>
-    <div id="voteChoices"></div>
-  </div>
-  <div id="admin" class="panel hidden">
-    <h2>TEST MENU</h2>
-    <p>Temporary public test controls. Press Y to close.</p>
-    <button id="startVote">START MAP VOTE</button>
-    <button id="returnLobby">RETURN TO LOBBY</button>
-  </div>
-  <div id="help">Walk up to the computer and press trigger. Press Y for test menu.</div>
   <script type="module" src="/game.js"></script>
 </body>
 </html>
