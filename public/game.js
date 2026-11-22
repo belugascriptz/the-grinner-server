@@ -10,11 +10,12 @@ scene.background = new THREE.Color(0x101016);
 scene.fog = new THREE.Fog(0x101016, 14, 38);
 
 const camera = new THREE.PerspectiveCamera(
-  75, window.innerWidth / window.innerHeight, 0.1, 100
+  75,
+  window.innerWidth / window.innerHeight,
+  0.1,
+  100
 );
 
-// Keep the camera at the XR floor origin.
-// Quest tracking supplies the real headset height.
 camera.position.set(0, 0, 0);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -50,6 +51,7 @@ let gameStarted = false;
 // =====================================
 
 const loading = document.createElement("div");
+
 loading.style.cssText = `
  position:fixed;inset:0;z-index:9999;
  background:#09090e;color:white;
@@ -103,6 +105,7 @@ const floor = new THREE.Mesh(
   new THREE.PlaneGeometry(40, 40),
   new THREE.MeshStandardMaterial({ color: 0x292934 })
 );
+
 floor.rotation.x = -Math.PI / 2;
 floor.position.y = 0;
 scene.add(floor);
@@ -112,6 +115,7 @@ function wall(x, y, z, sx, sy, sz, color = 0x383842) {
     new THREE.BoxGeometry(sx, sy, sz),
     new THREE.MeshStandardMaterial({ color })
   );
+
   mesh.position.set(x, y, z);
   scene.add(mesh);
 }
@@ -129,7 +133,7 @@ for (let i = 0; i < 7; i++) {
 
 // =====================================
 // CHARACTER MODELS
-// No legs. Long arms and large hands.
+// Small bodies, long arms, no legs.
 // =====================================
 
 function makeAvatar(color, monster = false) {
@@ -137,11 +141,12 @@ function makeAvatar(color, monster = false) {
 
   const bodyMat = new THREE.MeshStandardMaterial({
     color: monster ? 0xf0eee9 : color,
-    roughness: 0.85
+    roughness: 0.9
   });
 
   const darkMat = new THREE.MeshStandardMaterial({
-    color: 0x170d12
+    color: 0x170d12,
+    roughness: 0.8
   });
 
   const redMat = new THREE.MeshStandardMaterial({
@@ -149,79 +154,90 @@ function makeAvatar(color, monster = false) {
     roughness: 0.9
   });
 
-  const eyeMat = new THREE.MeshStandardMaterial({
-    color: monster ? 0x080000 : 0xffffff,
-    emissive: monster ? 0x220000 : 0x000000
+  const whiteMat = new THREE.MeshStandardMaterial({
+    color: 0xf5f0e8
   });
 
-  // Main body
+  // Compact body
   const body = new THREE.Mesh(
-    new THREE.SphereGeometry(0.43, 20, 16),
+    new THREE.SphereGeometry(0.25, 24, 20),
     bodyMat
   );
-  body.position.y = 0.85;
-  body.scale.set(1.05, 1.15, 0.85);
+
+  body.position.set(0, 0.48, 0);
+  body.scale.set(1, 1.15, 0.85);
   group.add(body);
 
-  // Head
+  // Small round head
   const head = new THREE.Mesh(
-    new THREE.SphereGeometry(0.30, 20, 16),
+    new THREE.SphereGeometry(0.205, 24, 20),
     bodyMat
   );
-  head.position.set(0, 1.43, -0.02);
+
+  head.position.set(0, 0.83, -0.025);
   group.add(head);
 
   // Small ears
   for (const side of [-1, 1]) {
     const ear = new THREE.Mesh(
-      new THREE.SphereGeometry(0.13, 12, 12),
+      new THREE.SphereGeometry(0.085, 16, 12),
       bodyMat
     );
-    ear.position.set(side * 0.29, 1.48, 0);
+
+    ear.position.set(side * 0.19, 0.87, 0);
     group.add(ear);
   }
 
-  // Face details
+  // =================================
+  // FACE
+  // =================================
+
   if (monster) {
-    // Black eye with red pupil
+    // Black eye
     const blackEye = new THREE.Mesh(
-      new THREE.SphereGeometry(0.085, 14, 14),
+      new THREE.SphereGeometry(0.065, 16, 14),
       darkMat
     );
-    blackEye.position.set(-0.12, 1.48, -0.278);
+
+    blackEye.position.set(-0.085, 0.85, -0.19);
     group.add(blackEye);
 
-    const redDot = new THREE.Mesh(
-      new THREE.SphereGeometry(0.035, 10, 10),
+    // Red pupil
+    const pupil = new THREE.Mesh(
+      new THREE.SphereGeometry(0.025, 12, 10),
       new THREE.MeshBasicMaterial({ color: 0xff1010 })
     );
-    redDot.position.set(-0.12, 1.48, -0.35);
-    group.add(redDot);
 
-    // Other eye's dark red marking
+    pupil.position.set(-0.085, 0.85, -0.245);
+    group.add(pupil);
+
+    // Other eye marking
     const otherMark = new THREE.Mesh(
-      new THREE.SphereGeometry(0.105, 12, 12),
+      new THREE.SphereGeometry(0.075, 16, 12),
       redMat
     );
-    otherMark.scale.set(1, 0.7, 0.4);
-    otherMark.position.set(0.13, 1.48, -0.27);
+
+    otherMark.scale.set(1, 0.7, 0.35);
+    otherMark.position.set(0.09, 0.85, -0.18);
     group.add(otherMark);
 
-    // Dark grin
+    // Big grin
     const mouth = new THREE.Mesh(
-      new THREE.BoxGeometry(0.43, 0.15, 0.045),
+      new THREE.BoxGeometry(0.29, 0.085, 0.035),
       darkMat
     );
-    mouth.position.set(0, 1.22, -0.28);
+
+    mouth.position.set(0, 0.70, -0.195);
     group.add(mouth);
 
-    // Stylized teeth
-    for (let i = 0; i < 7; i++) {
+    // Teeth
+    for (let i = 0; i < 5; i++) {
       const tooth = new THREE.Mesh(
-        new THREE.ConeGeometry(0.035, 0.09, 5),
-        new THREE.MeshStandardMaterial({ color: 0xf3eee0 })
+        new THREE.ConeGeometry(0.022, 0.055, 5),
+        whiteMat
       );
-      tooth.position.set(-0.16 + i * 0.053, 1.20, -0.31);
+
+      tooth.position.set(-0.105 + i * 0.052, 0.69, -0.22);
       tooth.rotation.x = Math.PI;
       group.add(tooth);
     }
@@ -230,72 +246,105 @@ function makeAvatar(color, monster = false) {
     // Normal character eyes
     for (const side of [-1, 1]) {
       const eye = new THREE.Mesh(
-        new THREE.SphereGeometry(0.055, 12, 12),
-        eyeMat
+        new THREE.SphereGeometry(0.035, 14, 12),
+        whiteMat
       );
-      eye.position.set(side * 0.12, 1.46, -0.27);
+
+      eye.position.set(side * 0.08, 0.85, -0.185);
       group.add(eye);
+
+      const pupil = new THREE.Mesh(
+        new THREE.SphereGeometry(0.018, 12, 10),
+        darkMat
+      );
+
+      pupil.position.set(side * 0.08, 0.85, -0.215);
+      group.add(pupil);
     }
   }
+
+  // =================================
+  // LONG CONNECTED ARMS
+  // =================================
 
   const arms = [];
   const hands = [];
 
-  // Long arms, no legs
   for (const side of [-1, 1]) {
     const arm = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.12, 0.105, 0.85, 12),
+      new THREE.CylinderGeometry(0.075, 0.09, 1, 16),
       bodyMat
     );
-    arm.position.set(side * 0.46, 0.48, 0);
-    arm.rotation.z = side * -0.25;
+
+    arm.position.set(side * 0.22, 0.25, 0);
     group.add(arm);
     arms.push(arm);
 
+    // Arm markings for Grinner
+    if (monster) {
+      for (let i = 0; i < 3; i++) {
+        const spot = new THREE.Mesh(
+          new THREE.SphereGeometry(0.035, 10, 8),
+          redMat
+        );
+
+        spot.position.set(
+          (i - 1) * 0.035,
+          (i - 1) * 0.22,
+          -0.075
+        );
+
+        arm.add(spot);
+      }
+    }
+
+    // Hands
     const hand = new THREE.Mesh(
-      new THREE.SphereGeometry(0.19, 14, 12),
+      new THREE.SphereGeometry(0.115, 18, 16),
       monster ? redMat : bodyMat
     );
-    hand.position.set(side * 0.5, 0.03, -0.05);
+
+    hand.position.set(side * 0.35, 0.02, -0.05);
     group.add(hand);
     hands.push(hand);
 
-    // Grinner's dark red hand markings
+    // Grinner hand markings
     if (monster) {
-      for (let finger = 0; finger < 3; finger++) {
+      for (let i = 0; i < 3; i++) {
         const mark = new THREE.Mesh(
-          new THREE.SphereGeometry(0.045, 8, 8),
+          new THREE.SphereGeometry(0.025, 10, 8),
           darkMat
         );
-        mark.position.set(
-          side * 0.5 + (finger - 1) * 0.07,
-          0.04,
-          -0.21
-        );
-        group.add(mark);
+
+        mark.position.set((i - 1) * 0.045, 0, -0.105);
+        hand.add(mark);
       }
     }
   }
 
-  // Dark red spots across Grinner's body and arms
+  // =================================
+  // GRINNER BODY SPOTS
+  // =================================
+
   if (monster) {
     const spots = [
-      [-0.22, 0.95, -0.30, 0.075],
-      [0.18, 0.77, -0.32, 0.055],
-      [-0.12, 0.55, -0.32, 0.045],
-      [0.24, 1.03, -0.25, 0.06],
-      [-0.31, 0.83, -0.18, 0.05],
-      [0.12, 1.68, -0.13, 0.04],
-      [-0.20, 1.25, -0.24, 0.045],
-      [0.52, 0.55, -0.10, 0.06],
-      [-0.52, 0.50, -0.10, 0.06]
+      [-0.13, 0.48, -0.19, 0.035],
+      [0.12, 0.55, -0.18, 0.04],
+      [-0.08, 0.35, -0.17, 0.03],
+      [0.15, 0.42, -0.13, 0.035],
+      [0.03, 0.96, -0.13, 0.03],
+      [-0.13, 0.76, -0.12, 0.035],
+      [0.10, 0.30, -0.12, 0.03],
+      [-0.19, 0.56, 0.02, 0.035],
+      [0.19, 0.48, 0.02, 0.03]
     ];
 
     for (const [x, y, z, size] of spots) {
       const spot = new THREE.Mesh(
-        new THREE.SphereGeometry(size, 10, 10),
+        new THREE.SphereGeometry(size, 12, 10),
         redMat
       );
+
       spot.position.set(x, y, z);
       group.add(spot);
     }
@@ -307,6 +356,36 @@ function makeAvatar(color, monster = false) {
   group.userData.isMonster = monster;
 
   return group;
+}
+
+// =====================================
+// UPDATE CHARACTER ARMS
+// =====================================
+
+function updateAvatarHand(avatar, index, position) {
+  const side = index === 0 ? -1 : 1;
+
+  const shoulder = new THREE.Vector3(
+    side * 0.22,
+    0.62,
+    0
+  );
+
+  const hand = avatar.userData.hands[index];
+  const arm = avatar.userData.arms[index];
+
+  hand.position.copy(position);
+
+  const direction = position.clone().sub(shoulder);
+  const length = direction.length();
+
+  arm.position.copy(shoulder).add(position).multiplyScalar(0.5);
+  arm.scale.y = Math.max(length, 0.05);
+
+  arm.quaternion.setFromUnitVectors(
+    new THREE.Vector3(0, 1, 0),
+    direction.normalize()
+  );
 }
 
 localAvatar = makeAvatar(currentColor);
@@ -358,8 +437,13 @@ menu.querySelector("#closeMenu").onclick = () => toggleMenu(false);
 
 menu.querySelector("#playerColour").oninput = event => {
   currentColor = event.target.value;
+
   localAvatar.userData.bodyMaterial.color.set(currentColor);
-  sendMessage({ type: "color", color: currentColor });
+
+  sendMessage({
+    type: "color",
+    color: currentColor
+  });
 };
 
 menu.querySelector("#startRound").onclick = () => {
@@ -384,6 +468,7 @@ function sendMessage(data) {
 
 function connectMultiplayer() {
   const protocol = location.protocol === "https:" ? "wss:" : "ws:";
+
   socket = new WebSocket(`${protocol}//${location.host}`);
 
   socket.onopen = () => {
@@ -407,6 +492,7 @@ function connectMultiplayer() {
 
   socket.onmessage = event => {
     let data;
+
     try {
       data = JSON.parse(event.data);
     } catch {
@@ -419,6 +505,7 @@ function connectMultiplayer() {
 
     if (data.type === "state") {
       const room = document.getElementById("room");
+
       if (room) {
         room.textContent =
           `ROOM: ${data.roomId} | PLAYERS: ${data.count}/${data.slots}`;
@@ -432,13 +519,16 @@ function connectMultiplayer() {
         currentRole = me.role;
 
         rig.remove(localAvatar);
+
         localAvatar = makeAvatar(
           currentColor,
           currentRole === "monster"
         );
+
         rig.add(localAvatar);
 
         const status = document.getElementById("status");
+
         if (status) {
           status.textContent =
             currentRole === "monster"
@@ -455,6 +545,7 @@ function updateRemotePlayers(players) {
 
   for (const player of players) {
     if (player.id === myId) continue;
+
     found.add(player.id);
 
     const isMonster = player.role === "monster";
@@ -484,11 +575,14 @@ function updateRemotePlayers(players) {
       if (!hand) return;
 
       const worldPosition = new THREE.Vector3(
-        hand.x, hand.y, hand.z
+        hand.x,
+        hand.y,
+        hand.z
       );
 
       const localPosition = avatar.worldToLocal(worldPosition);
-      avatar.userData.hands[index].position.copy(localPosition);
+
+      updateAvatarHand(avatar, index, localPosition);
     });
   }
 
@@ -506,6 +600,7 @@ function updateRemotePlayers(players) {
 
 for (let i = 0; i < 2; i++) {
   const controller = renderer.xr.getController(i);
+
   rig.add(controller);
   controllers.push(controller);
 }
@@ -519,7 +614,12 @@ function controllerPosition(controller) {
 function getHandData() {
   return controllers.map(controller => {
     const p = controllerPosition(controller);
-    return { x: p.x, y: p.y, z: p.z };
+
+    return {
+      x: p.x,
+      y: p.y,
+      z: p.z
+    };
   });
 }
 
@@ -541,18 +641,18 @@ function updateMovement(delta) {
       }
     }
 
-    if (xPressed && !lastXPressed) toggleMenu();
+    if (xPressed && !lastXPressed) {
+      toggleMenu();
+    }
+
     lastXPressed = xPressed;
 
-    // Arm-pushing movement.
     controllers.forEach((controller, index) => {
       const hand = controllerPosition(controller);
 
       if (previousHands[index]) {
         const movement = hand.clone().sub(previousHands[index]);
 
-        // Hands close to the floor can push the player upward
-        // and backward as they move.
         if (hand.y < 0.35 && movement.length() > 0.002) {
           velocity.addScaledVector(movement, -3.2);
         }
@@ -561,14 +661,18 @@ function updateMovement(delta) {
       previousHands[index] = hand.clone();
 
       const localHand = rig.worldToLocal(hand.clone());
-      localAvatar.userData.hands[index].position.copy(localHand);
+
+      updateAvatarHand(localAvatar, index, localHand);
     });
 
     velocity.y -= 9.8 * delta;
     velocity.multiplyScalar(0.985);
 
     const speed = velocity.length();
-    if (speed > 5.5) velocity.multiplyScalar(5.5 / speed);
+
+    if (speed > 5.5) {
+      velocity.multiplyScalar(5.5 / speed);
+    }
 
     rig.position.addScaledVector(velocity, delta);
 
@@ -578,7 +682,6 @@ function updateMovement(delta) {
     }
 
   } else {
-    // Desktop testing
     const direction = new THREE.Vector3();
 
     if (keys.KeyW) direction.z -= 1;
@@ -600,7 +703,10 @@ function updateMovement(delta) {
       velocity.y = 0;
     }
 
-    if (keys.KeyX && !lastXPressed) toggleMenu();
+    if (keys.KeyX && !lastXPressed) {
+      toggleMenu();
+    }
+
     lastXPressed = !!keys.KeyX;
   }
 
@@ -614,6 +720,7 @@ function updateMovement(delta) {
 
 function syncPlayer(now) {
   if (!gameStarted || now - lastSync < 75) return;
+
   lastSync = now;
 
   if (!socket || socket.readyState !== WebSocket.OPEN) return;
@@ -681,8 +788,10 @@ enterGameButton.onclick = async () => {
 
   } catch (error) {
     console.error(error);
+
     enterGameButton.disabled = false;
     enterGameButton.textContent = "TRY AGAIN";
+
     loadingText.textContent =
       "VR COULD NOT START. CHECK QUEST BROWSER PERMISSIONS.";
   }
@@ -721,5 +830,5 @@ renderer.setAnimationLoop(now => {
   renderer.render(scene, camera);
 });
 
-// Connect while the loading screen is visible.
+// Connect while loading screen is visible.
 connectMultiplayer();
