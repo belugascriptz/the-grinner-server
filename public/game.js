@@ -529,12 +529,26 @@ function createAvatar(options = {}) {
     );
     mark.scale.set(1.4, 0.7, 0.25);
     torso.add(mark);
-  }
+  const avatar = {
+  group,
+  head,
+  torso,
+  arms,
+  monster,
+  role: monster ? "monster" : "player",
+  externalModel: null,
+  headPosition: new THREE.Vector3(0, 1.65, 0)
+};
 
-  return {
-    group, head, torso, arms, monster,
-    headPosition: new THREE.Vector3(0, 1.65, 0)
-  };
+allAvatars.add(avatar);
+
+const template = characterTemplates[avatar.role];
+
+if (template) {
+  installCharacterModel(avatar, template);
+}
+
+return avatar;
 }
 
 // ==========================================
