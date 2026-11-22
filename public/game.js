@@ -529,6 +529,7 @@ function createAvatar(options = {}) {
     );
     mark.scale.set(1.4, 0.7, 0.25);
     torso.add(mark);
+  }
   const avatar = {
   group,
   head,
