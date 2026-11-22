@@ -1,15 +1,3 @@
-
-import * as THREE from "three";
-import { Reflector } from "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/objects/Reflector.js";
-
-const statusEl = document.getElementById("status");
-const roomEl = document.getElementById("room");
-const enterButton = document.getElementById("enterVR");
-
-const scene = new THREE.Scene();
-scene.background = new THREE.Color(0xe9edf0);
-scene.fog = new THREE.Fog(0xe9edf0, 22, 55);
-
 const camera = new THREE.PerspectiveCamera(
   70, window.innerWidth / window.innerHeight, 0.1, 100
 );
