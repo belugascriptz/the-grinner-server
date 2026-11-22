@@ -550,7 +550,7 @@ if (template) {
 
 return avatar;
 }
-
+loadCharacterModels();
 // ==========================================
 // LOCAL PLAYER
 // ==========================================
