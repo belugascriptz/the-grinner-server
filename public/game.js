@@ -227,7 +227,66 @@ const monsterTexture = makeTexture(
 // ==========================================
 
 const unitY = new THREE.Vector3(0, 1, 0);
+// ==========================================
+// IMPORTED CHARACTER MODELS
+// ==========================================
 
+const characterLoader = new GLTFLoader();
+
+const characterTemplates = {
+  player: null,
+  monster: null
+};
+
+const allAvatars = new Set();
+
+function installCharacterModel(avatar, template) {
+  const model = template.clone(true);
+
+  // The exported models face the opposite direction.
+  model.rotation.y = Math.PI;
+
+  avatar.group.clear();
+  avatar.group.add(model);
+
+  avatar.externalModel = model;
+}
+
+function loadCharacterModels() {
+  characterLoader.load(
+    "/models/the_grinner_normal_player.glb",
+    gltf => {
+      characterTemplates.player = gltf.scene;
+
+      for (const avatar of allAvatars) {
+        if (avatar.role === "player") {
+          installCharacterModel(avatar, gltf.scene);
+        }
+      }
+
+      console.log("Normal Player model loaded");
+    },
+    undefined,
+    error => console.error("Normal model failed to load:", error)
+  );
+
+  characterLoader.load(
+    "/models/the_grinner_monster.glb",
+    gltf => {
+      characterTemplates.monster = gltf.scene;
+
+      for (const avatar of allAvatars) {
+        if (avatar.role === "monster") {
+          installCharacterModel(avatar, gltf.scene);
+        }
+      }
+
+      console.log("Grinner monster model loaded");
+    },
+    undefined,
+    error => console.error("Monster model failed to load:", error)
+  );
+}
 function makeMaterial(color, texture = null, roughness = 1) {
   return new THREE.MeshStandardMaterial({
     color,
