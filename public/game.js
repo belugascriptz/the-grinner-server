@@ -103,7 +103,7 @@ scene.add(mainLight);
 
 const floor = new THREE.Mesh(
   new THREE.PlaneGeometry(40, 40),
-  new THREE.MeshStandardMaterial({ color: 0x292934 })
+  new THREE.MeshStandardMaterial({ color: 0x292934, roughness: 1 })
 );
 floor.rotation.x = -Math.PI / 2;
 scene.add(floor);
@@ -143,9 +143,10 @@ function makeSphere(parent, radius, material, position, scale = [1, 1, 1]) {
   return mesh;
 }
 
+// Individual finger with two sections and rounded joints
 function makeFinger(hand, x, length, angle, material) {
   const finger = new THREE.Group();
-  finger.position.set(x, -0.055, -0.015);
+  finger.position.set(x, -0.065, -0.015);
   finger.rotation.z = angle;
   hand.add(finger);
 
@@ -153,14 +154,19 @@ function makeFinger(hand, x, length, angle, material) {
   const secondLength = length * 0.45;
 
   const first = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.014, 0.018, firstLength, 10),
+    new THREE.CylinderGeometry(0.015, 0.019, firstLength, 12),
     material
   );
   first.position.y = -firstLength / 2;
   finger.add(first);
 
+  makeSphere(
+    finger, 0.017, material,
+    [0, -firstLength, 0]
+  );
+
   const second = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.012, 0.014, secondLength, 10),
+    new THREE.CylinderGeometry(0.012, 0.015, secondLength, 12),
     material
   );
   second.position.y = -firstLength - secondLength / 2;
@@ -168,12 +174,14 @@ function makeFinger(hand, x, length, angle, material) {
 
   makeSphere(
     finger, 0.014, material,
-    [0, -length, 0]
+    [0, -length, 0],
+    [0.9, 1.1, 0.9]
   );
 
   return finger;
 }
 
+// TWO FINGERS + ONE THUMB
 function makeHand(parent, material) {
   const hand = new THREE.Group();
   parent.add(hand);
@@ -182,28 +190,21 @@ function makeHand(parent, material) {
   makeSphere(
     hand, 0.105, material,
     [0, 0, 0],
-    [1.12, 0.82, 0.72]
+    [1.15, 0.82, 0.72]
   );
 
-  // Four separate fingers
-  const lengths = [0.105, 0.13, 0.125, 0.095];
-  const angles = [-0.15, -0.05, 0.07, 0.19];
+  // Two long, separated fingers
+  makeFinger(hand, -0.045, 0.19, -0.045, material);
+  makeFinger(hand, 0.045, 0.19, 0.045, material);
 
-  for (let i = 0; i < 4; i++) {
-    makeFinger(
-      hand,
-      (i - 1.5) * 0.047,
-      lengths[i],
-      angles[i],
-      material
-    );
-  }
-
-  // Thumb
+  // Thumb angled outward
   const thumb = makeFinger(
-    hand, -0.095, 0.095, -0.8, material
+    hand, -0.095, 0.14, -0.9, material
   );
+
   thumb.position.set(-0.095, -0.005, -0.015);
+  thumb.rotation.z = -0.9;
+  thumb.rotation.x = -0.15;
 
   return hand;
 }
@@ -278,7 +279,7 @@ function makeAvatar(color, monster = false) {
       [1.5, 0.35, 0.4]
     );
 
-    // SUBTLE DIRT ONLY
+    // SUBTLE DIRT
     const dirtSpots = [
       [-0.13, 0.48, -0.19, 0.027],
       [0.13, 0.53, -0.16, 0.019],
@@ -645,13 +646,11 @@ function updateMovement(delta) {
     if (xPressed && !lastXPressed) toggleMenu();
     lastXPressed = xPressed;
 
-    // Keep the avatar head aligned with the headset.
     localAvatar.position.y = camera.position.y - HEAD_HEIGHT;
 
     controllers.forEach((controller, index) => {
       const localHand = controller.position.clone();
 
-      // Convert tracked controller position to avatar-local coordinates.
       const avatarHand = localHand.clone()
         .sub(localAvatar.position)
         .divideScalar(AVATAR_SCALE);
@@ -661,13 +660,11 @@ function updateMovement(delta) {
       if (previousHands[index]) {
         const movement = localHand.clone().sub(previousHands[index]);
 
-        // Only push when the controller is close to the virtual floor.
         if (
           localHand.y < GROUND_CONTACT_HEIGHT &&
           previousHands[index].y < GROUND_CONTACT_HEIGHT &&
           movement.length() > 0.001
         ) {
-          // Horizontal movement pushes the rig in the opposite direction.
           const push = new THREE.Vector3(
             movement.x,
             0,
@@ -684,7 +681,6 @@ function updateMovement(delta) {
       previousHands[index] = localHand.clone();
     });
 
-    // Keep the player on the floor.
     velocity.y -= 9.8 * delta;
     velocity.multiplyScalar(0.985);
 
