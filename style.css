@@ -1,13 +1,14 @@
 *{box-sizing:border-box}
-html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#77715d;color:#f4f0e6;font-family:Arial,sans-serif}
-canvas{display:block;width:100%;height:100%}
-#hud{position:fixed;z-index:5;top:12px;left:12px;padding:12px 14px;background:rgba(15,14,12,.82);border:1px solid rgba(255,255,255,.18);border-radius:10px;max-width:min(92vw,340px)}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#171713;color:#f3eee4;font-family:Arial,sans-serif}
+canvas{display:block;width:100%;height:100%;touch-action:none}
+#hud{position:fixed;z-index:5;top:12px;left:12px;max-width:330px;padding:12px 14px;background:rgba(12,12,11,.78);border:1px solid rgba(255,255,255,.17);border-radius:10px;backdrop-filter:blur(8px)}
 .brand{font-size:18px;font-weight:900;letter-spacing:3px;margin-bottom:8px}
-.brand span{color:#df4545}
-#status,#players,#mapName{font-size:13px;margin:5px 0}
-.buttons{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
-button{border:0;border-radius:7px;padding:10px 13px;background:#d9cf9b;color:#171612;font-weight:800}
-#enterVR{background:#d64a42;color:white}
-#notice{font-size:11px;opacity:.8;margin-top:9px}
-#error{position:fixed;z-index:8;left:12px;right:12px;bottom:12px;color:#fff;background:rgba(130,0,0,.9);padding:10px;border-radius:8px;display:none;white-space:pre-wrap;font-size:12px}
-@media(max-width:600px){#hud{top:8px;left:8px;padding:10px}.brand{font-size:15px}}
+.brand span{color:#d33}
+#status,#roomCount,#mapLabel{font-size:13px;margin:5px 0}
+.buttons{display:flex;gap:8px;margin-top:10px}
+button{border:0;border-radius:7px;padding:10px 13px;background:#d8c98c;color:#171612;font-weight:900}
+#enterVR{background:#c83b35;color:#fff}
+#help{font-size:11px;line-height:1.4;opacity:.8;margin-top:9px}
+#error{display:none;position:fixed;z-index:10;left:12px;right:12px;bottom:12px;padding:12px;background:#7d1717;color:#fff;border-radius:8px;white-space:pre-wrap;font-size:12px}
+body.in-vr #hud{display:none}
+@media(max-width:600px){#hud{top:8px;left:8px;max-width:290px;padding:10px}.brand{font-size:15px}}
