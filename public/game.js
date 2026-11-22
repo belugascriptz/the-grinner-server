@@ -41,12 +41,10 @@ let controllers = [];
 let previousHands = [null, null];
 let gameStarted = false;
 
-// =====================================
-// HAND REACH SETTINGS
-// =====================================
-
-const HAND_REACH_OFFSET = 0.25;
-const GROUND_TOUCH_HEIGHT = 0.45;
+const AVATAR_SCALE = 0.72;
+const HEAD_HEIGHT = 0.79 * AVATAR_SCALE;
+const GROUND_CONTACT_HEIGHT = 0.23;
+const MOVEMENT_MULTIPLIER = 1.7;
 
 // =====================================
 // LOADING SCREEN
@@ -107,7 +105,6 @@ const floor = new THREE.Mesh(
   new THREE.PlaneGeometry(40, 40),
   new THREE.MeshStandardMaterial({ color: 0x292934 })
 );
-
 floor.rotation.x = -Math.PI / 2;
 scene.add(floor);
 
@@ -132,12 +129,12 @@ for (let i = 0; i < 7; i++) {
 }
 
 // =====================================
-// CHARACTER MODEL
+// CHARACTER PARTS
 // =====================================
 
 function makeSphere(parent, radius, material, position, scale = [1, 1, 1]) {
   const mesh = new THREE.Mesh(
-    new THREE.SphereGeometry(radius, 20, 16),
+    new THREE.SphereGeometry(radius, 24, 20),
     material
   );
   mesh.position.set(...position);
@@ -146,17 +143,86 @@ function makeSphere(parent, radius, material, position, scale = [1, 1, 1]) {
   return mesh;
 }
 
+function makeFinger(hand, x, length, angle, material) {
+  const finger = new THREE.Group();
+  finger.position.set(x, -0.055, -0.015);
+  finger.rotation.z = angle;
+  hand.add(finger);
+
+  const firstLength = length * 0.55;
+  const secondLength = length * 0.45;
+
+  const first = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.014, 0.018, firstLength, 10),
+    material
+  );
+  first.position.y = -firstLength / 2;
+  finger.add(first);
+
+  const second = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.012, 0.014, secondLength, 10),
+    material
+  );
+  second.position.y = -firstLength - secondLength / 2;
+  finger.add(second);
+
+  makeSphere(
+    finger, 0.014, material,
+    [0, -length, 0]
+  );
+
+  return finger;
+}
+
+function makeHand(parent, material) {
+  const hand = new THREE.Group();
+  parent.add(hand);
+
+  // Palm
+  makeSphere(
+    hand, 0.105, material,
+    [0, 0, 0],
+    [1.12, 0.82, 0.72]
+  );
+
+  // Four separate fingers
+  const lengths = [0.105, 0.13, 0.125, 0.095];
+  const angles = [-0.15, -0.05, 0.07, 0.19];
+
+  for (let i = 0; i < 4; i++) {
+    makeFinger(
+      hand,
+      (i - 1.5) * 0.047,
+      lengths[i],
+      angles[i],
+      material
+    );
+  }
+
+  // Thumb
+  const thumb = makeFinger(
+    hand, -0.095, 0.095, -0.8, material
+  );
+  thumb.position.set(-0.095, -0.005, -0.015);
+
+  return hand;
+}
+
+// =====================================
+// AVATAR CREATION
+// =====================================
+
 function makeAvatar(color, monster = false) {
   const group = new THREE.Group();
 
   const skin = new THREE.MeshStandardMaterial({
     color: monster ? 0xe8e5df : color,
-    roughness: 0.9
+    roughness: 0.95
   });
 
   const dark = new THREE.MeshStandardMaterial({
     color: 0x171016,
-    roughness: 0.8
+    roughness: 0.9
   });
 
   const white = new THREE.MeshStandardMaterial({
@@ -165,41 +231,33 @@ function makeAvatar(color, monster = false) {
 
   const red = new THREE.MeshStandardMaterial({
     color: 0x791626,
-    roughness: 0.9
+    roughness: 0.95
   });
 
-  // Body
-  makeSphere(
-    group, 0.25, skin,
-    [0, 0.48, 0],
-    [1, 1.15, 0.85]
-  );
+  const dirt = new THREE.MeshStandardMaterial({
+    color: 0x51483d,
+    roughness: 1
+  });
 
-  // Belly
+  // BODY
+  makeSphere(group, 0.25, skin, [0, 0.48, 0], [1, 1.15, 0.85]);
+
   makeSphere(
-    group, 0.18,
-    monster ? red : skin,
+    group, 0.18, monster ? red : skin,
     [0, 0.48, -0.18],
     [1, 1, 0.45]
   );
 
-  // Head
-  makeSphere(
-    group, 0.19, skin,
-    [0, 0.79, -0.025],
-    [1.05, 1, 0.95]
-  );
+  // HEAD
+  makeSphere(group, 0.19, skin, [0, 0.79, -0.025], [1.05, 1, 0.95]);
 
-  // Ears
+  // EARS
   for (const side of [-1, 1]) {
-    makeSphere(
-      group, 0.07, skin,
-      [side * 0.19, 0.83, 0]
-    );
+    makeSphere(group, 0.07, skin, [side * 0.19, 0.83, 0]);
   }
 
   if (!monster) {
-    // Eyes
+    // NORMAL PLAYER EYES
     for (const side of [-1, 1]) {
       makeSphere(
         group, 0.035, white,
@@ -214,35 +272,48 @@ function makeAvatar(color, monster = false) {
       );
     }
 
-    // Mouth
     makeSphere(
       group, 0.025, dark,
       [0, 0.72, -0.185],
       [1.5, 0.35, 0.4]
     );
 
-  } else {
-    // Grinner eye
-    makeSphere(
-      group, 0.065, dark,
-      [-0.075, 0.81, -0.16]
-    );
+    // SUBTLE DIRT ONLY
+    const dirtSpots = [
+      [-0.13, 0.48, -0.19, 0.027],
+      [0.13, 0.53, -0.16, 0.019],
+      [-0.08, 0.34, -0.17, 0.022],
+      [0.10, 0.88, -0.13, 0.018],
+      [-0.13, 0.73, -0.12, 0.018],
+      [0.16, 0.43, -0.09, 0.015]
+    ];
 
-    // Red pupil
+    for (const [x, y, z, size] of dirtSpots) {
+      makeSphere(
+        group, size, dirt,
+        [x, y, z],
+        [1.2, 0.7, 0.35]
+      );
+    }
+
+  } else {
+    // GRINNER EYE
+    makeSphere(group, 0.065, dark, [-0.075, 0.81, -0.16]);
+
     makeSphere(
       group, 0.025,
       new THREE.MeshBasicMaterial({ color: 0xff1429 }),
       [-0.075, 0.81, -0.215]
     );
 
-    // Eye patch
+    // RED PATCH
     makeSphere(
       group, 0.07, red,
       [0.08, 0.81, -0.15],
       [1, 0.85, 0.4]
     );
 
-    // Grin
+    // GRIN
     const mouth = new THREE.Mesh(
       new THREE.BoxGeometry(0.27, 0.075, 0.025),
       dark
@@ -250,7 +321,7 @@ function makeAvatar(color, monster = false) {
     mouth.position.set(0, 0.68, -0.18);
     group.add(mouth);
 
-    // Teeth
+    // TEETH
     for (let i = 0; i < 5; i++) {
       const tooth = new THREE.Mesh(
         new THREE.ConeGeometry(0.018, 0.04, 5),
@@ -261,7 +332,7 @@ function makeAvatar(color, monster = false) {
       group.add(tooth);
     }
 
-    // Body spots
+    // RED SPOTS
     const spots = [
       [-0.13, 0.48, -0.18],
       [0.12, 0.54, -0.16],
@@ -277,42 +348,29 @@ function makeAvatar(color, monster = false) {
     }
   }
 
-  // Arms and hands
+  // ARMS AND HANDS
   const arms = [];
   const hands = [];
 
   for (const side of [-1, 1]) {
     const arm = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.055, 0.07, 1, 12),
+      new THREE.CylinderGeometry(0.055, 0.07, 1, 16),
       skin
     );
 
     group.add(arm);
     arms.push(arm);
 
-    const hand = makeSphere(
+    const hand = makeHand(
       group,
-      0.105,
-      monster ? red : skin,
-      [side * 0.35, 0.02, -0.04],
-      [1.1, 0.85, 0.8]
+      monster ? red : skin
     );
 
     hands.push(hand);
-
-    if (monster) {
-      for (let i = 0; i < 3; i++) {
-        makeSphere(
-          hand,
-          0.018,
-          dark,
-          [(i - 1) * 0.05, 0, -0.08]
-        );
-      }
-    }
+    hand.position.set(side * 0.35, 0.02, -0.04);
   }
 
-  group.scale.set(0.72, 0.72, 0.72);
+  group.scale.set(AVATAR_SCALE, AVATAR_SCALE, AVATAR_SCALE);
 
   group.userData.hands = hands;
   group.userData.arms = arms;
@@ -323,7 +381,7 @@ function makeAvatar(color, monster = false) {
 }
 
 // =====================================
-// UPDATE ARMS AND HANDS
+// ARM POSITIONING
 // =====================================
 
 function updateAvatarHand(avatar, index, position) {
@@ -338,24 +396,17 @@ function updateAvatarHand(avatar, index, position) {
   const hand = avatar.userData.hands[index];
   const arm = avatar.userData.arms[index];
 
-  // Give the virtual hand extra downward reach.
-  const adjustedPosition = position.clone();
-  adjustedPosition.y -= HAND_REACH_OFFSET;
+  hand.position.copy(position);
 
-  hand.position.copy(adjustedPosition);
-
-  const direction = adjustedPosition.clone().sub(shoulder);
+  const direction = position.clone().sub(shoulder);
   const length = direction.length();
 
-  arm.position.copy(shoulder)
-    .add(adjustedPosition)
-    .multiplyScalar(0.5);
-
+  arm.position.copy(shoulder).add(position).multiplyScalar(0.5);
   arm.scale.y = Math.max(length, 0.05);
 
   arm.quaternion.setFromUnitVectors(
     new THREE.Vector3(0, 1, 0),
-    direction.normalize()
+    direction.clone().normalize()
   );
 }
 
@@ -536,6 +587,7 @@ function updateRemotePlayers(players) {
       );
 
       const localPosition = avatar.worldToLocal(worldPosition);
+      localPosition.divideScalar(AVATAR_SCALE);
 
       updateAvatarHand(avatar, index, localPosition);
     });
@@ -573,7 +625,7 @@ function getHandData() {
 }
 
 // =====================================
-// MOVEMENT
+// MOVEMENT AND GROUND PUSHING
 // =====================================
 
 function updateMovement(delta) {
@@ -593,32 +645,46 @@ function updateMovement(delta) {
     if (xPressed && !lastXPressed) toggleMenu();
     lastXPressed = xPressed;
 
+    // Keep the avatar head aligned with the headset.
+    localAvatar.position.y = camera.position.y - HEAD_HEIGHT;
+
     controllers.forEach((controller, index) => {
       const localHand = controller.position.clone();
 
+      // Convert tracked controller position to avatar-local coordinates.
       const avatarHand = localHand.clone()
         .sub(localAvatar.position)
-        .divide(localAvatar.scale);
+        .divideScalar(AVATAR_SCALE);
 
       updateAvatarHand(localAvatar, index, avatarHand);
-
-      const worldHand = controllerWorldPosition(controller);
 
       if (previousHands[index]) {
         const movement = localHand.clone().sub(previousHands[index]);
 
-        // Register ground contact from a higher hand position.
+        // Only push when the controller is close to the virtual floor.
         if (
-          worldHand.y < GROUND_TOUCH_HEIGHT &&
+          localHand.y < GROUND_CONTACT_HEIGHT &&
+          previousHands[index].y < GROUND_CONTACT_HEIGHT &&
           movement.length() > 0.001
         ) {
-          rig.position.addScaledVector(movement, -1.5);
+          // Horizontal movement pushes the rig in the opposite direction.
+          const push = new THREE.Vector3(
+            movement.x,
+            0,
+            movement.z
+          );
+
+          rig.position.addScaledVector(
+            push,
+            -MOVEMENT_MULTIPLIER
+          );
         }
       }
 
       previousHands[index] = localHand.clone();
     });
 
+    // Keep the player on the floor.
     velocity.y -= 9.8 * delta;
     velocity.multiplyScalar(0.985);
 
