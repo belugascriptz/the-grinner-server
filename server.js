@@ -15,61 +15,58 @@ app.get("/health", (_req, res) => {
   res.json({ ok: true, game: "The Grinner VR" });
 });
 
+const PORT = process.env.PORT || 3000;
 const MAX_PLAYERS = 12;
-const ADMIN_NAME = "gamingforfun69";
-const ADMIN_TOKEN = process.env.ADMIN_TOKEN;
 
 const rooms = new Map();
 const bannedNames = new Set();
-let roomNumber = 1;
-let dummyNumber = 1;
 
-function createRoom() {
-  const room = {
-    id: `room-${roomNumber++}`,
+let nextPlayerNumber = 1;
+let nextDummyNumber = 1;
+
+function createRoom(id) {
+  return {
+    id,
     players: new Map(),
     dummies: [],
     votes: {},
     map: "Yellow Hall",
     roundActive: false
   };
-
-  rooms.set(room.id, room);
-  return room;
 }
 
 function getRoom() {
   for (const room of rooms.values()) {
     if (room.players.size < MAX_PLAYERS) return room;
   }
-  return createRoom();
+
+  const id = `ROOM-${rooms.size + 1}`;
+  const room = createRoom(id);
+  rooms.set(id, room);
+  return room;
 }
 
-function send(ws, data) {
+function safeSend(ws, data) {
   if (ws.readyState === WebSocket.OPEN) {
     ws.send(JSON.stringify(data));
   }
 }
 
-function cleanNumber(value, min, max, fallback = 0) {
-  const n = Number(value);
-  return Number.isFinite(n)
-    ? Math.max(min, Math.min(max, n))
-    : fallback;
-}
-
-function cleanHand(hand) {
-  if (!hand || typeof hand !== "object") return null;
-
-  return {
-    x: cleanNumber(hand.x, -10, 10),
-    y: cleanNumber(hand.y, 0, 5),
-    z: cleanNumber(hand.z, -10, 10),
-    curl: cleanNumber(hand.curl, 0, 1)
-  };
-}
-
 function broadcast(room) {
+  const players = [...room.players.values()].map(player => ({
+    id: player.id,
+    name: player.name,
+    x: player.x,
+    y: player.y,
+    z: player.z,
+    color: player.color,
+    role: player.role,
+    admin: true,
+    leftHand: player.leftHand,
+    rightHand: player.rightHand,
+    telekinesisBy: player.telekinesisBy
+  }));
+
   const state = {
     type: "state",
     roomId: room.id,
@@ -78,344 +75,293 @@ function broadcast(room) {
     map: room.map,
     votes: room.votes,
     roundActive: room.roundActive,
-
-    players: [...room.players.values()].map(p => ({
-      id: p.id,
-      x: p.x,
-      y: p.y,
-      z: p.z,
-      color: p.color,
-      role: p.role,
-      name: p.name,
-      admin: p.admin,
-      leftHand: p.leftHand,
-      rightHand: p.rightHand,
-      telekinesisBy: p.telekinesisBy
-    })),
-
+    players,
     dummies: room.dummies
   };
 
   for (const player of room.players.values()) {
-    send(player.ws, state);
+    safeSend(player.ws, state);
   }
 }
 
-function startRound(room) {
-  if (room.players.size < 2) return false;
+function findPlayer(room, id) {
+  return room.players.get(String(id));
+}
 
-  for (const p of room.players.values()) {
-    p.role = "player";
+function cleanName(value) {
+  return String(value || "")
+    .replace(/[^a-zA-Z0-9 _-]/g, "")
+    .trim()
+    .slice(0, 18);
+}
+
+function validNumber(value) {
+  return Number.isFinite(Number(value));
+}
+
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, Number(value)));
+}
+
+function removePlayer(room, player, reason) {
+  if (!player) return;
+
+  if (player.telekinesisBy) {
+    const holder = findPlayer(room, player.telekinesisBy);
+    if (holder) holder.holdingPlayer = null;
   }
 
-  const players = [...room.players.values()];
-  const monster = players[Math.floor(Math.random() * players.length)];
-
-  monster.role = "monster";
-  room.roundActive = true;
-  broadcast(room);
-  return true;
-}
-
-function endRound(room) {
-  room.roundActive = false;
-
-  for (const p of room.players.values()) {
-    p.role = "player";
+  if (player.holdingPlayer) {
+    const held = findPlayer(room, player.holdingPlayer);
+    if (held) held.telekinesisBy = null;
   }
 
-  broadcast(room);
-}
+  room.players.delete(player.id);
+  safeSend(player.ws, { type: "kicked", reason });
+  try {
+    player.ws.close();
+  } catch {}
 
-function validAdminToken(value) {
-  if (!ADMIN_TOKEN || typeof value !== "string") return false;
-
-  const a = Buffer.from(value);
-  const b = Buffer.from(ADMIN_TOKEN);
-
-  return a.length === b.length &&
-    crypto.timingSafeEqual(a, b);
-}
-
-function adminOnly(player, ws) {
-  if (player.admin) return true;
-
-  send(ws, {
-    type: "error",
-    message: "Admin permission required"
-  });
-
-  return false;
-}
-
-function findTarget(room, id) {
-  if (typeof id !== "string") return null;
-  return room.players.get(id) || null;
-}
-
-function releasePlayer(room, target) {
-  if (!target) return;
-
-  target.telekinesisBy = null;
-  broadcast(room);
+  if (room.players.size === 0) {
+    rooms.delete(room.id);
+  } else {
+    broadcast(room);
+  }
 }
 
 wss.on("connection", ws => {
   const room = getRoom();
-  const id = crypto.randomBytes(8).toString("hex");
+
+  const id = crypto.randomUUID();
+  const name = `Player-${String(nextPlayerNumber++).padStart(4, "0")}`;
 
   const player = {
     id,
     ws,
+    name,
     x: 0,
     y: 0,
     z: 2,
     color: "#83c9ad",
     role: "player",
-    name: `Player-${id.slice(0, 4)}`,
-    admin: false,
+    admin: true,
     leftHand: null,
     rightHand: null,
-    telekinesisBy: null
+    telekinesisBy: null,
+    holdingPlayer: null
   };
 
   room.players.set(id, player);
 
-  send(ws, {
+  safeSend(ws, {
     type: "welcome",
     id,
-    roomId: room.id
+    roomId: room.id,
+    admin: true
   });
 
   broadcast(room);
 
   ws.on("message", raw => {
-    if (raw.length > 12000) return;
-
-    let msg;
+    let data;
 
     try {
-      msg = JSON.parse(raw.toString());
+      data = JSON.parse(raw.toString());
     } catch {
       return;
     }
 
-    if (!msg || typeof msg.type !== "string") return;
+    const current = findPlayer(room, id);
+    if (!current) return;
 
-    // PLAYER MOVEMENT
-    if (msg.type === "move") {
-      // A player being held cannot overwrite admin movement.
-      if (!player.telekinesisBy) {
-        player.x = cleanNumber(msg.x, -8, 8, player.x);
-        player.y = cleanNumber(msg.y, 0, 3, player.y);
-        player.z = cleanNumber(msg.z, -8, 8, player.z);
-      }
+    switch (data.type) {
+      case "name": {
+        const newName = cleanName(data.name);
+        if (!newName || bannedNames.has(newName.toLowerCase())) return;
 
-      player.leftHand = cleanHand(msg.leftHand);
-      player.rightHand = cleanHand(msg.rightHand);
-
-      broadcast(room);
-    }
-
-    // PLAYER COLOR
-    else if (msg.type === "color") {
-      if (/^#[0-9a-fA-F]{6}$/.test(msg.color || "")) {
-        player.color = msg.color;
+        current.name = newName;
         broadcast(room);
-      }
-    }
-
-    // PLAYER NAME
-    else if (msg.type === "name") {
-      if (typeof msg.name !== "string") return;
-
-      const newName = msg.name.trim().slice(0, 18);
-      const normalized = newName.toLowerCase();
-
-      if (!newName) return;
-
-      if (bannedNames.has(normalized)) {
-        send(ws, { type: "banned" });
-        ws.close(4003, "Banned");
-        return;
+        break;
       }
 
-      player.name = newName;
-      broadcast(room);
-    }
+      case "move": {
+        if (current.telekinesisBy) break;
 
-    // ADMIN LOGIN
-    else if (msg.type === "admin-login") {
-      const requestedName =
-        typeof msg.name === "string" ? msg.name.trim() : "";
+        if (validNumber(data.x)) current.x = clamp(data.x, -14, 14);
+        if (validNumber(data.y)) current.y = clamp(data.y, 0, 15);
+        if (validNumber(data.z)) current.z = clamp(data.z, -14, 14);
 
-      const allowed =
-        requestedName === ADMIN_NAME &&
-        validAdminToken(msg.token);
+        if (data.leftHand && validNumber(data.leftHand.x) &&
+            validNumber(data.leftHand.y) && validNumber(data.leftHand.z)) {
+          current.leftHand = {
+            x: clamp(data.leftHand.x, -30, 30),
+            y: clamp(data.leftHand.y, -5, 20),
+            z: clamp(data.leftHand.z, -30, 30)
+          };
+        }
 
-      player.admin = allowed;
+        if (data.rightHand && validNumber(data.rightHand.x) &&
+            validNumber(data.rightHand.y) && validNumber(data.rightHand.z)) {
+          current.rightHand = {
+            x: clamp(data.rightHand.x, -30, 30),
+            y: clamp(data.rightHand.y, -5, 20),
+            z: clamp(data.rightHand.z, -30, 30)
+          };
+        }
 
-      if (allowed) {
-        player.name = ADMIN_NAME;
+        broadcast(room);
+        break;
       }
 
-      send(ws, {
-        type: "admin-result",
-        success: allowed
-      });
+      case "color": {
+        if (typeof data.color === "string" &&
+            /^#[0-9a-fA-F]{6}$/.test(data.color)) {
+          current.color = data.color;
+          broadcast(room);
+        }
+        break;
+      }
 
-      broadcast(room);
-    }
+      case "vote": {
+        const allowed = [
+          "Yellow Hall",
+          "Abandoned School",
+          "Red Tunnels"
+        ];
 
-    // VOTING
-    else if (msg.type === "vote") {
-      const allowed = [
-        "Yellow Hall",
-        "Abandoned School",
-        "Red Tunnels"
-      ];
+        if (!allowed.includes(data.map)) return;
 
-      if (!allowed.includes(msg.choice)) return;
+        room.votes[id] = data.map;
 
-      room.votes[id] = msg.choice;
+        const counts = {};
+        for (const vote of Object.values(room.votes)) {
+          counts[vote] = (counts[vote] || 0) + 1;
+        }
 
-      const tally = {};
+        const winner = Object.entries(counts)
+          .sort((a, b) => b[1] - a[1])[0];
 
-      Object.values(room.votes).forEach(choice => {
-        tally[choice] = (tally[choice] || 0) + 1;
-      });
+        if (winner) room.map = winner[0];
 
-      room.map = Object.keys(tally).sort(
-        (a, b) => tally[b] - tally[a]
-      )[0] || room.map;
+        broadcast(room);
+        break;
+      }
 
-      broadcast(room);
-    }
+      case "start-round":
+        room.roundActive = true;
+        broadcast(room);
+        break;
 
-    // START ROUND
-    else if (msg.type === "start-round") {
-      if (!adminOnly(player, ws)) return;
-      startRound(room);
-    }
+      case "end-round":
+        room.roundActive = false;
+        broadcast(room);
+        break;
 
-    // END ROUND
-    else if (msg.type === "end-round") {
-      if (!adminOnly(player, ws)) return;
-      endRound(room);
-    }
+      case "spawn-dummy": {
+        if (room.dummies.length >= 10) {
+          safeSend(ws, { type: "error", message: "Maximum 10 dummies per room" });
+          return;
+        }
 
-    // KICK PLAYER
-    else if (msg.type === "kick-player") {
-      if (!adminOnly(player, ws)) return;
+        const dummy = {
+          id: `DUMMY-${nextDummyNumber++}`,
+          x: clamp(current.x + 1, -14, 14),
+          y: 0,
+          z: clamp(current.z - 1, -14, 14),
+          color: "#777568"
+        };
 
-      const target = findTarget(room, msg.targetId);
+        room.dummies.push(dummy);
+        broadcast(room);
+        break;
+      }
 
-      if (!target || target.id === player.id) return;
+      case "remove-dummies":
+        room.dummies = [];
+        broadcast(room);
+        break;
 
-      releasePlayer(room, target);
+      case "kick-player": {
+        const target = findPlayer(room, data.targetId);
+        if (!target || target.id === current.id) return;
+        removePlayer(room, target, "Kicked by another player");
+        break;
+      }
 
-      send(target.ws, { type: "kicked" });
-      target.ws.close(4001, "Removed by admin");
-    }
+      case "ban-player": {
+        const target = findPlayer(room, data.targetId);
+        if (!target || target.id === current.id) return;
 
-    // BAN PLAYER BY NAME
-    else if (msg.type === "ban-player") {
-      if (!adminOnly(player, ws)) return;
+        bannedNames.add(target.name.toLowerCase());
+        removePlayer(room, target, "Banned from this server");
+        break;
+      }
 
-      const target = findTarget(room, msg.targetId);
+      case "grab-player": {
+        const target = findPlayer(room, data.targetId);
+        if (!target || target.id === current.id) return;
 
-      if (!target || target.id === player.id) return;
+        if (current.holdingPlayer) {
+          const oldTarget = findPlayer(room, current.holdingPlayer);
+          if (oldTarget) oldTarget.telekinesisBy = null;
+        }
 
-      const name = target.name.trim().toLowerCase();
+        if (target.telekinesisBy) {
+          const oldHolder = findPlayer(room, target.telekinesisBy);
+          if (oldHolder) oldHolder.holdingPlayer = null;
+        }
 
-      if (!name || name === "player") return;
+        current.holdingPlayer = target.id;
+        target.telekinesisBy = current.id;
+        broadcast(room);
+        break;
+      }
 
-      bannedNames.add(name);
+      case "move-held-player": {
+        const target = findPlayer(room, data.targetId);
 
-      releasePlayer(room, target);
+        if (!target || current.holdingPlayer !== target.id ||
+            target.telekinesisBy !== current.id) return;
 
-      send(target.ws, { type: "banned" });
-      target.ws.close(4003, "Banned by admin");
-    }
+        if (validNumber(data.x)) target.x = clamp(data.x, -14, 14);
+        if (validNumber(data.y)) target.y = clamp(data.y, 0, 15);
+        if (validNumber(data.z)) target.z = clamp(data.z, -14, 14);
 
-    // SPAWN DUMMY
-    else if (msg.type === "spawn-dummy") {
-      if (!adminOnly(player, ws)) return;
+        broadcast(room);
+        break;
+      }
 
-      if (room.dummies.length >= 10) return;
+      case "release-player": {
+        const target = findPlayer(room, data.targetId);
 
-      room.dummies.push({
-        id: `dummy-${dummyNumber++}`,
-        x: cleanNumber(player.x + 1, -8, 8),
-        y: 0,
-        z: cleanNumber(player.z - 1, -8, 8),
-        color: "#b9b9bd"
-      });
+        if (!target || current.holdingPlayer !== target.id) return;
 
-      broadcast(room);
-    }
+        target.telekinesisBy = null;
+        current.holdingPlayer = null;
+        broadcast(room);
+        break;
+      }
 
-    // REMOVE ALL DUMMIES
-    else if (msg.type === "remove-dummies") {
-      if (!adminOnly(player, ws)) return;
-
-      room.dummies = [];
-      broadcast(room);
-    }
-
-    // GRAB PLAYER
-    else if (msg.type === "grab-player") {
-      if (!adminOnly(player, ws)) return;
-
-      const target = findTarget(room, msg.targetId);
-
-      if (!target || target.id === player.id) return;
-
-      // One admin can hold a player at a time.
-      if (target.telekinesisBy &&
-          target.telekinesisBy !== player.id) return;
-
-      target.telekinesisBy = player.id;
-      broadcast(room);
-    }
-
-    // MOVE HELD PLAYER
-    else if (msg.type === "move-held-player") {
-      if (!adminOnly(player, ws)) return;
-
-      const target = findTarget(room, msg.targetId);
-
-      if (!target || target.telekinesisBy !== player.id) return;
-
-      target.x = cleanNumber(msg.x, -8, 8, target.x);
-      target.y = cleanNumber(msg.y, 0, 3, target.y);
-      target.z = cleanNumber(msg.z, -8, 8, target.z);
-
-      broadcast(room);
-    }
-
-    // RELEASE PLAYER
-    else if (msg.type === "release-player") {
-      if (!adminOnly(player, ws)) return;
-
-      const target = findTarget(room, msg.targetId);
-
-      if (!target || target.telekinesisBy !== player.id) return;
-
-      releasePlayer(room, target);
+      default:
+        break;
     }
   });
 
   ws.on("close", () => {
-    // Release anyone this admin was holding.
-    for (const target of room.players.values()) {
-      if (target.telekinesisBy === player.id) {
-        target.telekinesisBy = null;
-      }
-    }
+    const current = findPlayer(room, id);
+    if (!current) return;
 
     room.players.delete(id);
-    delete room.votes[id];
+
+    if (current.holdingPlayer) {
+      const held = findPlayer(room, current.holdingPlayer);
+      if (held) held.telekinesisBy = null;
+    }
+
+    if (current.telekinesisBy) {
+      const holder = findPlayer(room, current.telekinesisBy);
+      if (holder) holder.holdingPlayer = null;
+    }
 
     if (room.players.size === 0) {
       rooms.delete(room.id);
@@ -423,14 +369,8 @@ wss.on("connection", ws => {
       broadcast(room);
     }
   });
-
-  ws.on("error", err => {
-    console.error("WebSocket:", err.message);
-  });
 });
 
-const port = process.env.PORT || 10000;
-
-server.listen(port, "0.0.0.0", () => {
-  console.log(`The Grinner VR listening on ${port}`);
+server.listen(PORT, "0.0.0.0", () => {
+  console.log(`The Grinner VR server running on port ${PORT}`);
 });
