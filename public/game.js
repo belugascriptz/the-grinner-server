@@ -582,6 +582,18 @@ const controllerRay = new THREE.Raycaster();
 const tempVector = new THREE.Vector3();
 
 function updateAvatarPose(avatar, headLocal, leftLocal, rightLocal) {
+  if (avatar.externalModel) {
+    const modelHeadHeight = avatar.monster ? 1.435 : 1.04;
+
+    avatar.externalModel.position.set(
+      headLocal.x,
+      headLocal.y - modelHeadHeight,
+      headLocal.z
+    );
+
+    return;
+  }
+
   avatar.head.position.copy(headLocal);
 
   // Body hangs below the headset.
