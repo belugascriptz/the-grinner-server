@@ -3,6 +3,7 @@ const express = require("express");
 const http = require("http");
 const WebSocket = require("ws");
 const path = require("path");
+const crypto = require("crypto");
 
 const app = express();
 const server = http.createServer(app);
@@ -15,6 +16,9 @@ app.get("/health", (_req, res) => {
 });
 
 const MAX_PLAYERS = 12;
+const ADMIN_NAME = "gamingforfun69";
+const ADMIN_TOKEN = process.env.ADMIN_TOKEN;
+
 const rooms = new Map();
 let roomNumber = 1;
 
@@ -35,7 +39,6 @@ function getRoom() {
   for (const room of rooms.values()) {
     if (room.players.size < MAX_PLAYERS) return room;
   }
-
   return createRoom();
 }
 
@@ -45,19 +48,21 @@ function send(ws, data) {
   }
 }
 
-function cleanPosition(value, min, max, fallback = 0) {
-  const number = Number(value);
-  if (!Number.isFinite(number)) return fallback;
-  return Math.max(min, Math.min(max, number));
+function cleanNumber(value, min, max, fallback = 0) {
+  const n = Number(value);
+  return Number.isFinite(n)
+    ? Math.max(min, Math.min(max, n))
+    : fallback;
 }
 
 function cleanHand(hand) {
   if (!hand || typeof hand !== "object") return null;
 
   return {
-    x: cleanPosition(hand.x, -10, 10),
-    y: cleanPosition(hand.y, 0, 5),
-    z: cleanPosition(hand.z, -10, 10)
+    x: cleanNumber(hand.x, -10, 10),
+    y: cleanNumber(hand.y, 0, 5),
+    z: cleanNumber(hand.z, -10, 10),
+    curl: cleanNumber(hand.curl, 0, 1)
   };
 }
 
@@ -70,22 +75,41 @@ function broadcast(room) {
     map: room.map,
     votes: room.votes,
     roundActive: room.roundActive,
-    players: [...room.players.values()].map(player => ({
-      id: player.id,
-      x: player.x,
-      y: player.y,
-      z: player.z,
-      color: player.color,
-      role: player.role,
-      name: player.name,
-      leftHand: player.leftHand,
-      rightHand: player.rightHand
+    players: [...room.players.values()].map(p => ({
+      id: p.id,
+      x: p.x,
+      y: p.y,
+      z: p.z,
+      color: p.color,
+      role: p.role,
+      name: p.name,
+      admin: p.admin,
+      leftHand: p.leftHand,
+      rightHand: p.rightHand
     }))
   };
 
   for (const player of room.players.values()) {
     send(player.ws, state);
   }
+}
+
+function startRound(room) {
+  if (room.players.size < 2) {
+    return false;
+  }
+
+  for (const player of room.players.values()) {
+    player.role = "player";
+  }
+
+  const players = [...room.players.values()];
+  const monster = players[Math.floor(Math.random() * players.length)];
+
+  monster.role = "monster";
+  room.roundActive = true;
+  broadcast(room);
+  return true;
 }
 
 function endRound(room) {
@@ -98,28 +122,18 @@ function endRound(room) {
   broadcast(room);
 }
 
-function startRound(room) {
-  if (room.players.size < 2) return;
+function validAdminToken(value) {
+  if (!ADMIN_TOKEN || typeof value !== "string") return false;
 
-  const players = [...room.players.values()];
+  const a = Buffer.from(value);
+  const b = Buffer.from(ADMIN_TOKEN);
 
-  for (const player of players) {
-    player.role = "player";
-  }
-
-  const monster = players[
-    Math.floor(Math.random() * players.length)
-  ];
-
-  monster.role = "monster";
-  room.roundActive = true;
-
-  broadcast(room);
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
 }
 
 wss.on("connection", ws => {
   const room = getRoom();
-  const id = Math.random().toString(36).slice(2, 10);
+  const id = crypto.randomBytes(8).toString("hex");
 
   const player = {
     id,
@@ -127,9 +141,10 @@ wss.on("connection", ws => {
     x: 0,
     y: 0,
     z: 2,
-    color: "#a9d6a0",
+    color: "#83c9ad",
     role: "player",
     name: "Player",
+    admin: false,
     leftHand: null,
     rightHand: null
   };
@@ -145,8 +160,9 @@ wss.on("connection", ws => {
   broadcast(room);
 
   ws.on("message", raw => {
-    let msg;
+    if (raw.length > 12000) return;
 
+    let msg;
     try {
       msg = JSON.parse(raw.toString());
     } catch {
@@ -156,13 +172,11 @@ wss.on("connection", ws => {
     if (!msg || typeof msg.type !== "string") return;
 
     if (msg.type === "move") {
-      player.x = cleanPosition(msg.x, -8, 8, player.x);
-      player.y = cleanPosition(msg.y, 0, 3, player.y);
-      player.z = cleanPosition(msg.z, -8, 8, player.z);
-
+      player.x = cleanNumber(msg.x, -8, 8, player.x);
+      player.y = cleanNumber(msg.y, 0, 3, player.y);
+      player.z = cleanNumber(msg.z, -8, 8, player.z);
       player.leftHand = cleanHand(msg.leftHand);
       player.rightHand = cleanHand(msg.rightHand);
-
       broadcast(room);
     }
 
@@ -180,6 +194,25 @@ wss.on("connection", ws => {
       }
     }
 
+    else if (msg.type === "admin-login") {
+      const requestedName =
+        typeof msg.name === "string" ? msg.name.trim() : "";
+
+      const allowed =
+        requestedName === ADMIN_NAME &&
+        validAdminToken(msg.token);
+
+      player.admin = allowed;
+      player.name = allowed ? ADMIN_NAME : player.name;
+
+      send(ws, {
+        type: "admin-result",
+        success: allowed
+      });
+
+      broadcast(room);
+    }
+
     else if (msg.type === "vote") {
       const allowed = [
         "Yellow Hall",
@@ -191,7 +224,6 @@ wss.on("connection", ws => {
         room.votes[id] = msg.choice;
 
         const tally = {};
-
         Object.values(room.votes).forEach(choice => {
           tally[choice] = (tally[choice] || 0) + 1;
         });
@@ -206,11 +238,32 @@ wss.on("connection", ws => {
     }
 
     else if (msg.type === "start-round") {
+      if (!player.admin) {
+        send(ws, { type: "error", message: "Admin permission required" });
+        return;
+      }
       startRound(room);
     }
 
     else if (msg.type === "end-round") {
+      if (!player.admin) {
+        send(ws, { type: "error", message: "Admin permission required" });
+        return;
+      }
       endRound(room);
+    }
+
+    else if (msg.type === "kick-player") {
+      if (!player.admin || typeof msg.targetId !== "string") {
+        send(ws, { type: "error", message: "Admin permission required" });
+        return;
+      }
+
+      const target = room.players.get(msg.targetId);
+      if (target && target.id !== player.id) {
+        send(target.ws, { type: "kicked" });
+        target.ws.close(4001, "Removed by admin");
+      }
     }
   });
 
