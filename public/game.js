@@ -2,7 +2,9 @@
 import * as THREE from "three";
 
 // ==========================================
-// THE GRINNER VR - GAME CLIENT
+// THE GRINNER VR - CHARACTER UPDATE
+// Legless characters, controller-driven arms,
+// larger monster, multiplayer and wrist menu.
 // ==========================================
 
 const statusEl = document.getElementById("status");
@@ -14,14 +16,14 @@ scene.background = new THREE.Color(0x090b0d);
 scene.fog = new THREE.FogExp2(0x090b0d, 0.027);
 
 const camera = new THREE.PerspectiveCamera(
-  70, window.innerWidth / window.innerHeight, 0.05, 100
+  70, innerWidth / innerHeight, 0.05, 100
 );
+camera.position.set(0, 1.6, 0);
 
 const renderer = new THREE.WebGLRenderer({
   antialias: true,
   powerPreference: "high-performance"
 });
-
 renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
 renderer.setSize(innerWidth, innerHeight);
 renderer.xr.enabled = true;
@@ -32,9 +34,9 @@ document.body.appendChild(renderer.domElement);
 
 const clock = new THREE.Clock();
 
-scene.add(new THREE.HemisphereLight(0x87909b, 0x17100d, 1.0));
+scene.add(new THREE.HemisphereLight(0x87909b, 0x17100d, 1.1));
 
-const mainLight = new THREE.DirectionalLight(0xb8b3a6, 1.0);
+const mainLight = new THREE.DirectionalLight(0xb8b3a6, 1.1);
 mainLight.position.set(5, 10, 4);
 mainLight.castShadow = true;
 scene.add(mainLight);
@@ -43,60 +45,31 @@ const world = new THREE.Group();
 scene.add(world);
 
 // ==========================================
-// MATERIALS
+// ROOM
 // ==========================================
 
 const concrete = new THREE.MeshStandardMaterial({
-  color: 0x383a37,
-  roughness: 1
+  color: 0x383a37, roughness: 1
 });
-
 const darkConcrete = new THREE.MeshStandardMaterial({
-  color: 0x202322,
-  roughness: 1
+  color: 0x202322, roughness: 1
 });
-
 const metal = new THREE.MeshStandardMaterial({
-  color: 0x343b3d,
-  metalness: 0.55,
-  roughness: 0.75
+  color: 0x343b3d, metalness: 0.55, roughness: 0.75
 });
-
 const rustyMetal = new THREE.MeshStandardMaterial({
-  color: 0x49312a,
-  metalness: 0.25,
-  roughness: 1
+  color: 0x49312a, metalness: 0.25, roughness: 1
 });
-
 const warningMaterial = new THREE.MeshStandardMaterial({
   color: 0x8c171b,
   emissive: 0x5c080c,
   emissiveIntensity: 1.4
 });
 
-// ==========================================
-// ROOM BUILDING HELPERS
-// ==========================================
-
 function block(parent, material, x, y, z, sx, sy, sz) {
   const mesh = new THREE.Mesh(
-    new THREE.BoxGeometry(sx, sy, sz),
-    material
+    new THREE.BoxGeometry(sx, sy, sz), material
   );
-
-  mesh.position.set(x, y, z);
-  mesh.castShadow = true;
-  mesh.receiveShadow = true;
-  parent.add(mesh);
-  return mesh;
-}
-
-function cylinder(parent, material, x, y, z, radius, height) {
-  const mesh = new THREE.Mesh(
-    new THREE.CylinderGeometry(radius, radius, height, 12),
-    material
-  );
-
   mesh.position.set(x, y, z);
   mesh.castShadow = true;
   mesh.receiveShadow = true;
@@ -108,76 +81,58 @@ function addLight(x, y, z, color, intensity, distance) {
   const light = new THREE.PointLight(color, intensity, distance);
   light.position.set(x, y, z);
   world.add(light);
-  return light;
 }
 
-// ==========================================
-// REDESIGNED ABANDONED INDUSTRIAL ROOM
-// ==========================================
-
-// Main floor
 block(world, concrete, 0, -0.2, 0, 30, 0.4, 30);
 
-// Lower floor panels
 for (let x = -12; x <= 12; x += 3) {
   for (let z = -12; z <= 12; z += 3) {
     block(world, darkConcrete, x, 0.005, z, 2.85, 0.025, 2.85);
   }
 }
 
-// Main walls
 block(world, darkConcrete, 0, 3, -15, 30, 6, 0.5);
 block(world, darkConcrete, 0, 3, 15, 30, 6, 0.5);
 block(world, darkConcrete, -15, 3, 0, 0.5, 6, 30);
 block(world, darkConcrete, 15, 3, 0, 0.5, 6, 30);
 
-// Ceiling beams
 for (let z = -12; z <= 12; z += 4) {
   block(world, metal, 0, 5.5, z, 30, 0.22, 0.28);
 }
 
-// Side pillars
 for (const x of [-12, -8, 8, 12]) {
   for (const z of [-10, -4, 4, 10]) {
     block(world, rustyMetal, x, 2.6, z, 0.45, 5.2, 0.45);
   }
 }
 
-// Raised platforms
 block(world, rustyMetal, -7, 0.55, -5, 5, 1.1, 3);
 block(world, rustyMetal, 7, 0.75, -8, 4, 1.5, 4);
 block(world, metal, -8, 1.2, 6, 3, 2.4, 3);
 block(world, metal, 8, 0.45, 7, 5, 0.9, 3);
 
-// Platforms have dark tops
 block(world, darkConcrete, -7, 1.12, -5, 4.8, 0.06, 2.8);
 block(world, darkConcrete, 7, 1.52, -8, 3.8, 0.06, 3.8);
 block(world, darkConcrete, -8, 2.42, 6, 2.8, 0.06, 2.8);
 block(world, darkConcrete, 8, 0.92, 7, 4.8, 0.06, 2.8);
 
-// Central industrial structure
 block(world, metal, 0, 1.1, -5, 3.2, 2.2, 2.5);
 block(world, darkConcrete, 0, 2.25, -5, 3.5, 0.15, 2.8);
 
-// Tunnel-like structure
 block(world, darkConcrete, -3, 1.5, 11, 0.35, 3, 6);
 block(world, darkConcrete, 3, 1.5, 11, 0.35, 3, 6);
 block(world, metal, 0, 3.05, 11, 6.4, 0.35, 6);
 
-// Red warning lights
 for (const z of [-11, -5, 1, 7, 12]) {
   const glow = new THREE.Mesh(
     new THREE.BoxGeometry(1.1, 0.1, 0.2),
     warningMaterial
   );
-
   glow.position.set(0, 4.9, z);
   world.add(glow);
-
   addLight(0, 4.4, z, 0xff2525, 0.65, 7);
 }
 
-// Wall lights
 for (const z of [-10, -2, 6, 12]) {
   for (const x of [-14.6, 14.6]) {
     block(world, rustyMetal, x, 3.6, z, 0.25, 0.7, 0.7);
@@ -185,231 +140,341 @@ for (const z of [-10, -2, 6, 12]) {
   }
 }
 
-// Random floor debris
 for (let i = 0; i < 65; i++) {
   const size = 0.12 + Math.random() * 0.28;
-
   const debris = new THREE.Mesh(
     new THREE.BoxGeometry(size, size * 0.25, size),
     Math.random() > 0.5 ? rustyMetal : darkConcrete
   );
-
   debris.position.set(
     (Math.random() - 0.5) * 26,
     0.03,
     (Math.random() - 0.5) * 26
   );
-
   debris.rotation.y = Math.random() * Math.PI;
   world.add(debris);
 }
 
 // ==========================================
-// DIRTY CHARACTER TEXTURE
+// CHARACTER TEXTURES
 // ==========================================
 
-function makeFurTexture() {
+function makeTexture(base, darkColor, redMarks = false) {
   const canvas = document.createElement("canvas");
-  canvas.width = 256;
-  canvas.height = 256;
-
+  canvas.width = 512;
+  canvas.height = 512;
   const ctx = canvas.getContext("2d");
-  ctx.fillStyle = "#777568";
-  ctx.fillRect(0, 0, 256, 256);
 
-  for (let i = 0; i < 2400; i++) {
-    const shade = Math.floor(30 + Math.random() * 120);
+  ctx.fillStyle = base;
+  ctx.fillRect(0, 0, 512, 512);
 
-    ctx.fillStyle = `rgba(${shade},${shade},${shade},${Math.random() * 0.4})`;
+  for (let i = 0; i < 6500; i++) {
+    const shade = Math.floor(25 + Math.random() * 100);
+    const alpha = Math.random() * 0.35;
 
-    ctx.beginPath();
-    ctx.arc(
-      Math.random() * 256,
-      Math.random() * 256,
-      Math.random() * 4 + 0.5,
-      0,
-      Math.PI * 2
+    ctx.fillStyle = `rgba(${shade},${shade},${shade},${alpha})`;
+    ctx.fillRect(
+      Math.random() * 512,
+      Math.random() * 512,
+      Math.random() * 5 + 1,
+      Math.random() * 5 + 1
     );
-    ctx.fill();
   }
 
-  for (let i = 0; i < 100; i++) {
-    ctx.strokeStyle = "rgba(30,24,20,0.3)";
-    ctx.lineWidth = Math.random() * 3 + 1;
+  for (let i = 0; i < 180; i++) {
+    ctx.strokeStyle = darkColor;
+    ctx.globalAlpha = Math.random() * 0.35;
+    ctx.lineWidth = Math.random() * 5 + 1;
     ctx.beginPath();
-    ctx.moveTo(Math.random() * 256, Math.random() * 256);
-    ctx.lineTo(Math.random() * 256, Math.random() * 256);
+    ctx.moveTo(Math.random() * 512, Math.random() * 512);
+    ctx.lineTo(Math.random() * 512, Math.random() * 512);
     ctx.stroke();
   }
 
+  if (redMarks) {
+    for (let i = 0; i < 90; i++) {
+      ctx.fillStyle = `rgba(100,8,12,${Math.random() * 0.35})`;
+      ctx.beginPath();
+      ctx.ellipse(
+        Math.random() * 512,
+        Math.random() * 512,
+        Math.random() * 24 + 3,
+        Math.random() * 12 + 2,
+        Math.random() * Math.PI,
+        0, Math.PI * 2
+      );
+      ctx.fill();
+    }
+  }
+
+  ctx.globalAlpha = 1;
+
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
+  texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+  texture.repeat.set(1.5, 1.5);
   return texture;
 }
 
-const furTexture = makeFurTexture();
+const normalTexture = makeTexture("#777568", "rgba(25,22,18,0.5)");
+const monsterTexture = makeTexture(
+  "#392c2b", "rgba(12,5,5,0.65)", true
+);
 
 // ==========================================
-// CHARACTER MODEL
+// CHARACTER MODEL HELPERS
 // ==========================================
 
-function createAvatar(color = "#777568") {
+const unitY = new THREE.Vector3(0, 1, 0);
+
+function makeMaterial(color, texture = null, roughness = 1) {
+  return new THREE.MeshStandardMaterial({
+    color,
+    map: texture,
+    roughness
+  });
+}
+
+function makeLimb(parent, material, radius, length = 1) {
+  const mesh = new THREE.Mesh(
+    new THREE.CylinderGeometry(radius * 0.82, radius, length, 7),
+    material
+  );
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  parent.add(mesh);
+  return mesh;
+}
+
+function placeLimb(mesh, start, end) {
+  const direction = new THREE.Vector3().subVectors(end, start);
+  const length = direction.length();
+
+  mesh.position.copy(start).add(end).multiplyScalar(0.5);
+  mesh.quaternion.setFromUnitVectors(unitY, direction.normalize());
+  mesh.scale.set(1, Math.max(0.001, length), 1);
+}
+
+function makeJoint(parent, material, radius) {
+  const mesh = new THREE.Mesh(
+    new THREE.IcosahedronGeometry(radius, 1),
+    material
+  );
+  mesh.castShadow = true;
+  parent.add(mesh);
+  return mesh;
+}
+
+// ==========================================
+// LEGLESS PLAYER / MONSTER
+// ==========================================
+
+function createAvatar(options = {}) {
+  const monster = options.role === "monster";
   const group = new THREE.Group();
 
-  const fur = new THREE.MeshStandardMaterial({
-    color,
-    map: furTexture,
-    roughness: 1
-  });
+  // Monster is 1.4 times larger in every direction.
+  group.scale.setScalar(monster ? 1.4 : 1);
 
-  const skin = new THREE.MeshStandardMaterial({
-    color: 0x51443d,
-    roughness: 1
-  });
+  const fur = makeMaterial(
+    monster ? 0x55403e : 0x777568,
+    monster ? monsterTexture : normalTexture
+  );
 
-  const dark = new THREE.MeshStandardMaterial({
-    color: 0x211c1b,
-    roughness: 1
-  });
+  const pale = makeMaterial(
+    monster ? 0xaaa09a : 0xb9b0a0,
+    monster ? monsterTexture : normalTexture
+  );
 
-  const eyeWhite = new THREE.MeshStandardMaterial({
-    color: 0xe8dfca
-  });
+  const dark = makeMaterial(monster ? 0x10090a : 0x211c1b);
+  const black = makeMaterial(0x050505);
+  const red = makeMaterial(0x68161b);
+  const teeth = makeMaterial(0xd7c8a8);
 
-  const pupil = new THREE.MeshStandardMaterial({
-    color: 0x090909
-  });
+  const torso = new THREE.Group();
+  group.add(torso);
 
-  const mouthMaterial = new THREE.MeshStandardMaterial({
-    color: 0x100d0d
-  });
+  // Broad upper body. No legs or feet are created.
+  const chest = new THREE.Mesh(
+    new THREE.DodecahedronGeometry(0.56, 1), fur
+  );
+  chest.scale.set(1.04, 1.1, 0.78);
+  chest.position.set(0, 1.08, 0);
+  chest.castShadow = true;
+  torso.add(chest);
 
-  const teeth = new THREE.MeshStandardMaterial({
-    color: 0xd8d0b9
-  });
+  const belly = new THREE.Mesh(
+    new THREE.DodecahedronGeometry(0.43, 1), fur
+  );
+  belly.scale.set(1, 0.88, 0.75);
+  belly.position.set(0, 0.72, 0.015);
+  belly.castShadow = true;
+  torso.add(belly);
 
-  function part(geometry, material, x, y, z, sx = 1, sy = 1, sz = 1) {
-    const mesh = new THREE.Mesh(geometry, material);
-    mesh.position.set(x, y, z);
-    mesh.scale.set(sx, sy, sz);
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
-    group.add(mesh);
-    return mesh;
-  }
+  const chestPatch = new THREE.Mesh(
+    new THREE.DodecahedronGeometry(0.36, 1), pale
+  );
+  chestPatch.scale.set(1, 1.3, 0.23);
+  chestPatch.position.set(0, 1.02, -0.36);
+  torso.add(chestPatch);
 
-  function sphere(material, x, y, z, sx, sy, sz) {
-    return part(
-      new THREE.SphereGeometry(1, 20, 16),
-      material, x, y, z, sx, sy, sz
-    );
-  }
+  // Head pivot follows headset position.
+  const head = new THREE.Group();
+  group.add(head);
 
-  function capsule(material, x, y, z, radius, length, rotation = 0) {
-    const mesh = part(
-      new THREE.CapsuleGeometry(radius, length, 5, 12),
-      material, x, y, z
-    );
-    mesh.rotation.z = rotation;
-    return mesh;
-  }
+  const skull = new THREE.Mesh(
+    new THREE.DodecahedronGeometry(0.38, 1), fur
+  );
+  skull.scale.set(1.08, 1.03, 0.94);
+  skull.castShadow = true;
+  head.add(skull);
 
-  // Torso
-  sphere(fur, 0, 0.98, 0, 0.53, 0.67, 0.43);
-  sphere(fur, 0, 1.18, 0.015, 0.62, 0.43, 0.42);
-  sphere(fur, 0, 0.83, -0.035, 0.43, 0.43, 0.40);
+  const face = new THREE.Mesh(
+    new THREE.DodecahedronGeometry(0.27, 1), pale
+  );
+  face.scale.set(1.03, 0.83, 0.42);
+  face.position.set(0, -0.10, -0.27);
+  head.add(face);
 
-  // Neck and head
-  capsule(fur, 0, 1.48, 0, 0.25, 0.18);
-  sphere(fur, 0, 1.77, -0.015, 0.39, 0.39, 0.36);
-
-  // Face
-  sphere(dark, 0, 1.86, -0.315, 0.32, 0.105, 0.085);
-  sphere(skin, 0, 1.64, -0.325, 0.25, 0.17, 0.13);
-  sphere(dark, 0, 1.70, -0.435, 0.105, 0.065, 0.045);
-
-  // Eyes
-  sphere(eyeWhite, -0.145, 1.82, -0.345, 0.09, 0.105, 0.055);
-  sphere(eyeWhite, 0.145, 1.82, -0.345, 0.09, 0.105, 0.055);
-  sphere(pupil, -0.145, 1.82, -0.394, 0.042, 0.055, 0.025);
-  sphere(pupil, 0.145, 1.82, -0.394, 0.042, 0.055, 0.025);
-
-  // Mouth
-  sphere(mouthMaterial, 0, 1.49, -0.355, 0.205, 0.085, 0.075);
-
-  for (let i = -2; i <= 2; i++) {
-    const tooth = part(
-      new THREE.BoxGeometry(0.045, 0.055, 0.025),
-      teeth,
-      i * 0.065,
-      1.535,
-      -0.414
-    );
-
-    tooth.rotation.z = i * -0.08;
-  }
-
-  // Ears
-  sphere(fur, -0.39, 1.76, 0, 0.13, 0.17, 0.10);
-  sphere(fur, 0.39, 1.76, 0, 0.13, 0.17, 0.10);
-  sphere(skin, -0.405, 1.76, -0.065, 0.065, 0.09, 0.035);
-  sphere(skin, 0.405, 1.76, -0.065, 0.065, 0.09, 0.035);
-
-  // Long arms, palms and fingers
+  // Deep eye sockets.
   for (const side of [-1, 1]) {
-    sphere(fur, side * 0.49, 1.29, 0, 0.30, 0.30, 0.31);
+    const socket = new THREE.Mesh(
+      new THREE.SphereGeometry(0.105, 12, 10), dark
+    );
+    socket.scale.set(1, 1.12, 0.45);
+    socket.position.set(side * 0.145, 0.055, -0.355);
+    head.add(socket);
 
-    capsule(fur, side * 0.68, 0.91, 0, 0.205, 0.48, side * -0.12);
-    capsule(fur, side * 0.88, 0.49, -0.015, 0.17, 0.38, side * -0.10);
-
-    sphere(skin, side * 1.02, 0.22, -0.035, 0.20, 0.13, 0.16);
-
-    for (let finger = 0; finger < 4; finger++) {
-      const spread = (finger - 1.5) * 0.075;
-
-      capsule(
-        skin,
-        side * (1.04 + Math.abs(spread) * 0.15),
-        0.075,
-        -0.045 + spread,
-        0.035,
-        0.105
-      );
-    }
-
-    capsule(skin, side * 0.91, 0.19, -0.18, 0.045, 0.12, side * 0.8);
-
-    // Legs
-    sphere(fur, side * 0.25, 0.39, 0.025, 0.25, 0.34, 0.29);
-    capsule(fur, side * 0.25, 0.19, -0.005, 0.16, 0.17);
-
-    // Feet and toes
-    sphere(skin, side * 0.25, 0.075, -0.13, 0.19, 0.09, 0.28);
-
-    for (let toe = 0; toe < 3; toe++) {
-      sphere(
-        skin,
-        side * 0.25 + (toe - 1) * 0.085,
-        0.055,
-        -0.34,
-        0.045,
-        0.045,
-        0.085
-      );
-    }
+    const eye = new THREE.Mesh(
+      new THREE.SphereGeometry(0.045, 10, 8), black
+    );
+    eye.position.set(side * 0.145, 0.055, -0.39);
+    head.add(eye);
   }
 
-  // Dirt patches
-  const dirt = new THREE.MeshStandardMaterial({
-    color: 0x39332d,
-    roughness: 1
-  });
+  const nose = new THREE.Mesh(
+    new THREE.DodecahedronGeometry(0.075, 0),
+    dark
+  );
+  nose.scale.set(1.2, 0.7, 0.6);
+  nose.position.set(0, -0.12, -0.39);
+  head.add(nose);
 
-  sphere(dirt, -0.32, 1.10, -0.30, 0.12, 0.18, 0.035);
-  sphere(dirt, 0.28, 0.82, -0.34, 0.10, 0.15, 0.035);
-  sphere(dirt, -0.15, 1.95, -0.20, 0.09, 0.045, 0.035);
+  // Wide dark grin.
+  const mouth = new THREE.Mesh(
+    new THREE.BoxGeometry(0.39, monster ? 0.20 : 0.13, 0.035),
+    dark
+  );
+  mouth.position.set(0, -0.245, -0.355);
+  head.add(mouth);
 
-  return { group, arms: [] };
+  // Uneven teeth, stylized rather than graphic.
+  const toothCount = monster ? 9 : 7;
+  for (let i = 0; i < toothCount; i++) {
+    const width = monster ? 0.043 : 0.035;
+    const height = monster ? 0.095 : 0.045;
+
+    const tooth = new THREE.Mesh(
+      new THREE.ConeGeometry(width, height, 4),
+      teeth
+    );
+    tooth.position.set(
+      (i - (toothCount - 1) / 2) * (monster ? 0.045 : 0.052),
+      -0.22 - (i % 2) * 0.018,
+      -0.383
+    );
+    tooth.rotation.z = Math.PI;
+    head.add(tooth);
+  }
+
+  // Ears.
+  for (const side of [-1, 1]) {
+    const ear = new THREE.Mesh(
+      new THREE.DodecahedronGeometry(0.12, 0), fur
+    );
+    ear.scale.set(0.8, 1.1, 0.6);
+    ear.position.set(side * 0.39, 0.02, 0);
+    head.add(ear);
+  }
+
+  // Monster has a dark red damaged-looking face patch.
+  if (monster) {
+    const patch = new THREE.Mesh(
+      new THREE.DodecahedronGeometry(0.15, 0), red
+    );
+    patch.scale.set(1.1, 0.8, 0.35);
+    patch.position.set(-0.20, 0.22, -0.31);
+    head.add(patch);
+
+    const brow = new THREE.Mesh(
+      new THREE.BoxGeometry(0.23, 0.075, 0.06), red
+    );
+    brow.position.set(0.16, 0.18, -0.34);
+    brow.rotation.z = -0.18;
+    head.add(brow);
+  }
+
+  // Shoulder joints and controller-driven arms.
+  const arms = [];
+
+  for (const side of [-1, 1]) {
+    const shoulder = makeJoint(group, fur, monster ? 0.25 : 0.21);
+    const upperArm = makeLimb(group, fur, monster ? 0.19 : 0.16);
+    const elbow = makeJoint(group, fur, monster ? 0.16 : 0.13);
+    const forearm = makeLimb(group, fur, monster ? 0.155 : 0.13);
+    const wrist = makeJoint(group, fur, monster ? 0.12 : 0.105);
+
+    const hand = new THREE.Group();
+    group.add(hand);
+
+    const palm = new THREE.Mesh(
+      new THREE.DodecahedronGeometry(monster ? 0.17 : 0.145, 1),
+      pale
+    );
+    palm.scale.set(1.12, 0.78, 0.55);
+    palm.castShadow = true;
+    hand.add(palm);
+
+    const fingers = [];
+    for (let f = 0; f < 4; f++) {
+      const finger = makeLimb(hand, pale, monster ? 0.036 : 0.028);
+      const spread = (f - 1.5) * 0.075;
+      finger.userData.spread = spread;
+      finger.userData.index = f;
+      fingers.push(finger);
+    }
+
+    const thumb = makeLimb(hand, pale, monster ? 0.04 : 0.032);
+    thumb.rotation.z = side * -0.65;
+
+    arms.push({
+      side, shoulder, upperArm, elbow, forearm, wrist,
+      hand, fingers, thumb
+    });
+  }
+
+  // Dirt plates and scratches across torso.
+  for (let i = 0; i < 18; i++) {
+    const mark = new THREE.Mesh(
+      new THREE.DodecahedronGeometry(
+        0.025 + Math.random() * 0.055, 0
+      ),
+      i % 3 === 0 ? dark : (monster ? red : dark)
+    );
+
+    mark.position.set(
+      (Math.random() - 0.5) * 0.78,
+      0.65 + Math.random() * 0.85,
+      -0.38 - Math.random() * 0.025
+    );
+    mark.scale.set(1.4, 0.7, 0.25);
+    torso.add(mark);
+  }
+
+  return {
+    group, head, torso, arms, monster,
+    headPosition: new THREE.Vector3(0, 1.65, 0)
+  };
 }
 
 // ==========================================
@@ -420,28 +485,90 @@ const rig = new THREE.Group();
 scene.add(rig);
 rig.position.set(0, 0, 2);
 
-const localAvatar = createAvatar();
+const localAvatar = createAvatar({ role: "player" });
 rig.add(localAvatar.group);
 
-// ==========================================
-// HANDS AND CONTROLLERS
-// ==========================================
+const controllerLeft = renderer.xr.getController(0);
+const controllerRight = renderer.xr.getController(1);
+scene.add(controllerLeft, controllerRight);
 
-const handGeometry = new THREE.SphereGeometry(0.12, 12, 10);
-const handMaterial = new THREE.MeshStandardMaterial({
-  color: 0xcbbda6
-});
+const handGeometry = new THREE.SphereGeometry(0.08, 12, 10);
+const handMaterial = new THREE.MeshStandardMaterial({ color: 0xb9b0a0 });
 
-const leftHand = new THREE.Mesh(handGeometry, handMaterial);
-const rightHand = new THREE.Mesh(handGeometry, handMaterial);
-scene.add(leftHand, rightHand);
-
-const leftController = renderer.xr.getController(0);
-const rightController = renderer.xr.getController(1);
-
-scene.add(leftController, rightController);
+const leftHandMarker = new THREE.Mesh(handGeometry, handMaterial);
+const rightHandMarker = new THREE.Mesh(handGeometry, handMaterial);
+scene.add(leftHandMarker, rightHandMarker);
 
 const controllerRay = new THREE.Raycaster();
+
+// ==========================================
+// ARM POSE UPDATES
+// ==========================================
+
+const tempVector = new THREE.Vector3();
+
+function updateAvatarPose(avatar, headLocal, leftLocal, rightLocal) {
+  avatar.head.position.copy(headLocal);
+
+  // Body hangs below the headset.
+  avatar.torso.position.set(
+    headLocal.x,
+    headLocal.y - 0.66,
+    headLocal.z + 0.02
+  );
+
+  const shoulderY = headLocal.y - 0.48;
+
+  for (const arm of avatar.arms) {
+    const handPosition = arm.side < 0 ? leftLocal : rightLocal;
+
+    if (!handPosition) continue;
+
+    const shoulderPosition = new THREE.Vector3(
+      arm.side * 0.47,
+      shoulderY,
+      headLocal.z + 0.02
+    );
+
+    const elbowPosition = new THREE.Vector3(
+      (shoulderPosition.x + handPosition.x) * 0.5,
+      (shoulderPosition.y + handPosition.y) * 0.5 + 0.10,
+      (shoulderPosition.z + handPosition.z) * 0.5
+    );
+
+    arm.shoulder.position.copy(shoulderPosition);
+    arm.elbow.position.copy(elbowPosition);
+    arm.wrist.position.copy(handPosition);
+
+    placeLimb(arm.upperArm, shoulderPosition, elbowPosition);
+    placeLimb(arm.forearm, elbowPosition, handPosition);
+
+    arm.hand.position.copy(handPosition);
+    arm.hand.lookAt(
+      handPosition.x,
+      handPosition.y,
+      handPosition.z - 1
+    );
+
+    for (const finger of arm.fingers) {
+      const spread = finger.userData.spread;
+      const f = finger.userData.index;
+      const start = new THREE.Vector3(spread, -0.035, -0.06);
+      const end = new THREE.Vector3(
+        spread * 1.5,
+        -0.17 - (f % 2) * 0.015,
+        -0.10
+      );
+      placeLimb(finger, start, end);
+    }
+
+    placeLimb(
+      arm.thumb,
+      new THREE.Vector3(arm.side * -0.09, -0.01, -0.03),
+      new THREE.Vector3(arm.side * -0.18, -0.12, -0.09)
+    );
+  }
+}
 
 // ==========================================
 // MULTIPLAYER
@@ -481,7 +608,6 @@ function connect() {
 
   socket.addEventListener("message", event => {
     let data;
-
     try {
       data = JSON.parse(event.data);
     } catch {
@@ -495,13 +621,13 @@ function connect() {
     }
 
     if (data.type === "state") {
-      roomId = data.roomId;
+      roomId = data.roomId || roomId;
       players = data.players || [];
       dummies = data.dummies || [];
 
       if (roomEl) {
         roomEl.textContent =
-          `ROOM: ${roomId} | PLAYERS: ${data.count}/${data.slots}`;
+          `ROOM: ${roomId} | PLAYERS: ${players.length}/12`;
       }
 
       updateRemotePlayers();
@@ -522,6 +648,10 @@ function connect() {
 
 connect();
 
+function worldToLocal(group, position) {
+  return group.worldToLocal(position.clone());
+}
+
 function updateRemotePlayers() {
   const active = new Set();
 
@@ -529,47 +659,56 @@ function updateRemotePlayers() {
     if (player.id === myId) continue;
     active.add(player.id);
 
+    const role = player.role === "monster" ? "monster" : "player";
     let avatar = remotePlayers.get(player.id);
 
-    if (!avatar) {
-      avatar = createAvatar(player.color || "#777568");
-      scene.add(avatar.group);
+    if (!avatar || avatar.role !== role) {
+      if (avatar) scene.remove(avatar.model.group);
 
-      avatar.leftHand = new THREE.Mesh(handGeometry, handMaterial);
-      avatar.rightHand = new THREE.Mesh(handGeometry, handMaterial);
+      const model = createAvatar({ role });
+      scene.add(model.group);
 
-      scene.add(avatar.leftHand, avatar.rightHand);
+      avatar = {
+        model,
+        role,
+        group: model.group
+      };
       remotePlayers.set(player.id, avatar);
     }
 
     avatar.group.position.set(
-      player.x || 0,
-      player.y || 0,
-      player.z || 0
+      player.x || 0, player.y || 0, player.z || 0
     );
 
-    if (player.leftHand) {
-      avatar.leftHand.position.set(
-        player.leftHand.x,
-        player.leftHand.y,
-        player.leftHand.z
+    const head = new THREE.Vector3(0, 1.65, 0);
+
+    // Compatible with servers that later send headPosition.
+    if (player.headPosition) {
+      head.set(
+        player.headPosition.x - (player.x || 0),
+        player.headPosition.y - (player.y || 0),
+        player.headPosition.z - (player.z || 0)
       );
     }
 
-    if (player.rightHand) {
-      avatar.rightHand.position.set(
-        player.rightHand.x,
-        player.rightHand.y,
-        player.rightHand.z
-      );
-    }
+    const left = player.leftHand
+      ? worldToLocal(avatar.group, new THREE.Vector3(
+          player.leftHand.x, player.leftHand.y, player.leftHand.z
+        ))
+      : new THREE.Vector3(-0.9, 0.65, -0.2);
+
+    const right = player.rightHand
+      ? worldToLocal(avatar.group, new THREE.Vector3(
+          player.rightHand.x, player.rightHand.y, player.rightHand.z
+        ))
+      : new THREE.Vector3(0.9, 0.65, -0.2);
+
+    updateAvatarPose(avatar.model, head, left, right);
   }
 
   for (const [id, avatar] of remotePlayers) {
     if (!active.has(id)) {
-      scene.remove(avatar.group);
-      scene.remove(avatar.leftHand);
-      scene.remove(avatar.rightHand);
+      scene.remove(avatar.model.group);
       remotePlayers.delete(id);
     }
   }
@@ -584,21 +723,27 @@ function updateDummies() {
     let avatar = remoteDummies.get(dummy.id);
 
     if (!avatar) {
-      avatar = createAvatar(dummy.color || "#777568");
-      scene.add(avatar.group);
+      const model = createAvatar({ role: dummy.role || "player" });
+      scene.add(model.group);
+      avatar = { model, group: model.group };
       remoteDummies.set(dummy.id, avatar);
     }
 
     avatar.group.position.set(
-      dummy.x || 0,
-      dummy.y || 0,
-      dummy.z || 0
+      dummy.x || 0, dummy.y || 0, dummy.z || 0
+    );
+
+    updateAvatarPose(
+      avatar.model,
+      new THREE.Vector3(0, 1.65, 0),
+      new THREE.Vector3(-0.9, 0.65, -0.2),
+      new THREE.Vector3(0.9, 0.65, -0.2)
     );
   }
 
   for (const [id, avatar] of remoteDummies) {
     if (!active.has(id)) {
-      scene.remove(avatar.group);
+      scene.remove(avatar.model.group);
       remoteDummies.delete(id);
     }
   }
@@ -612,11 +757,9 @@ let menu;
 let menuButtons = [];
 let menuOpen = false;
 let menuTab = "PLAYERS";
-
 let selectedPlayerId = null;
 let heldPlayerId = null;
 let playerPage = 0;
-
 let previousX = false;
 let previousTrigger = false;
 let lastTouch = 0;
@@ -626,8 +769,8 @@ function makeMenuText(value, width = 0.7, height = 0.09) {
   const canvas = document.createElement("canvas");
   canvas.width = 512;
   canvas.height = 128;
-
   const ctx = canvas.getContext("2d");
+
   ctx.clearRect(0, 0, 512, 128);
   ctx.fillStyle = "#ffffff";
   ctx.font = "bold 38px Arial";
@@ -636,16 +779,12 @@ function makeMenuText(value, width = 0.7, height = 0.09) {
   ctx.fillText(String(value).slice(0, 24), 256, 64);
 
   const texture = new THREE.CanvasTexture(canvas);
-
   const text = new THREE.Mesh(
     new THREE.PlaneGeometry(width, height),
     new THREE.MeshBasicMaterial({
-      map: texture,
-      transparent: true,
-      depthWrite: false
+      map: texture, transparent: true, depthWrite: false
     })
   );
-
   text.position.z = 0.025;
   return text;
 }
@@ -653,16 +792,11 @@ function makeMenuText(value, width = 0.7, height = 0.09) {
 function addMenuButton(label, x, y, width, action, color = 0x343a43) {
   const button = new THREE.Mesh(
     new THREE.BoxGeometry(width, 0.105, 0.025),
-    new THREE.MeshStandardMaterial({
-      color,
-      roughness: 0.8
-    })
+    new THREE.MeshStandardMaterial({ color, roughness: 0.8 })
   );
 
   button.position.set(x, y, 0.012);
   button.userData.action = action;
-  button.userData.baseColor = color;
-
   menu.add(button);
 
   const text = makeMenuText(label, width - 0.035, 0.075);
@@ -693,36 +827,28 @@ function buildAdminMenu() {
 
   const panel = new THREE.Mesh(
     new THREE.BoxGeometry(0.92, 0.94, 0.035),
-    new THREE.MeshStandardMaterial({
-      color: 0x17191e,
-      roughness: 0.85
-    })
+    new THREE.MeshStandardMaterial({ color: 0x17191e })
   );
-
   menu.add(panel);
 
   const border = new THREE.Mesh(
     new THREE.BoxGeometry(0.95, 0.97, 0.018),
     new THREE.MeshBasicMaterial({ color: 0x9d222c })
   );
-
   border.position.z = -0.035;
   menu.add(border);
 
   menu.position.set(0.02, 0.10, -0.19);
   menu.rotation.set(-0.25, 0, 0);
   menu.visible = false;
+  controllerLeft.add(menu);
 
-  leftController.add(menu);
   refreshAdminMenu();
 }
 
 function addTab(label, x, tab) {
   addMenuButton(
-    label,
-    x,
-    0.36,
-    0.20,
+    label, x, 0.36, 0.20,
     () => {
       menuTab = tab;
       refreshAdminMenu();
@@ -759,27 +885,22 @@ function refreshAdminMenu() {
       0x45404b
     );
 
-    const shown = others.slice(playerPage * 3, playerPage * 3 + 3);
-
-    shown.forEach((player, index) => {
-      const selected = selectedPlayerId === player.id;
-
-      addMenuButton(
-        `${selected ? "> " : ""}${player.name || "PLAYER"}`,
-        0,
-        0.055 - index * 0.13,
-        0.72,
-        () => {
-          selectedPlayerId = player.id;
-          refreshAdminMenu();
-        },
-        selected ? 0x76512a : 0x343a43
-      );
-    });
+    others.slice(playerPage * 3, playerPage * 3 + 3)
+      .forEach((player, index) => {
+        const selected = selectedPlayerId === player.id;
+        addMenuButton(
+          `${selected ? "> " : ""}${player.name || "PLAYER"}`,
+          0, 0.055 - index * 0.13, 0.72,
+          () => {
+            selectedPlayerId = player.id;
+            refreshAdminMenu();
+          },
+          selected ? 0x76512a : 0x343a43
+        );
+      });
 
     addMenuButton(
-      "KICK SELECTED",
-      0, -0.35, 0.72,
+      "KICK SELECTED", 0, -0.35, 0.72,
       () => {
         if (!selectedPlayerId) return;
         send({ type: "kick-player", targetId: selectedPlayerId });
@@ -789,8 +910,7 @@ function refreshAdminMenu() {
     );
 
     addMenuButton(
-      "BAN SELECTED",
-      0, -0.49, 0.72,
+      "BAN SELECTED", 0, -0.49, 0.72,
       () => {
         if (!selectedPlayerId) return;
         send({ type: "ban-player", targetId: selectedPlayerId });
@@ -802,89 +922,55 @@ function refreshAdminMenu() {
 
   if (menuTab === "DUMMIES") {
     addMenuButton(
-      "SPAWN DUMMY",
-      0, 0.13, 0.72,
-      () => send({ type: "spawn-dummy" }),
-      0x315c42
+      "SPAWN DUMMY", 0, 0.13, 0.72,
+      () => send({ type: "spawn-dummy" }), 0x315c42
     );
-
     addMenuButton(
-      "REMOVE ALL DUMMIES",
-      0, -0.04, 0.72,
-      () => send({ type: "remove-dummies" }),
-      0x74343a
+      "REMOVE ALL DUMMIES", 0, -0.04, 0.72,
+      () => send({ type: "remove-dummies" }), 0x74343a
     );
-
     addMenuButton(
-      `DUMMIES: ${dummies.length}`,
-      0, -0.21, 0.72,
-      () => {},
-      0x45404b
+      `DUMMIES: ${dummies.length}`, 0, -0.21, 0.72,
+      () => {}, 0x45404b
     );
   }
 
   if (menuTab === "TELE") {
     addMenuButton(
-      "SELECT PLAYER IN PLAYERS",
-      0, 0.17, 0.72,
+      "SELECT PLAYER IN PLAYERS", 0, 0.17, 0.72,
       () => {
         menuTab = "PLAYERS";
         refreshAdminMenu();
       }
     );
-
     addMenuButton(
-      "GRAB SELECTED",
-      0, 0, 0.72,
+      "GRAB SELECTED", 0, 0, 0.72,
       () => {
         if (!selectedPlayerId) return;
         heldPlayerId = selectedPlayerId;
         send({ type: "grab-player", targetId: heldPlayerId });
-      },
-      0x315c42
+      }, 0x315c42
     );
-
     addMenuButton(
-      "RELEASE PLAYER",
-      0, -0.17, 0.72,
+      "RELEASE PLAYER", 0, -0.17, 0.72,
       () => {
         if (!heldPlayerId) return;
         send({ type: "release-player", targetId: heldPlayerId });
         heldPlayerId = null;
-      },
-      0x74343a
+      }, 0x74343a
     );
   }
 
   if (menuTab === "SERVER") {
-    addMenuButton(
-      `ROOM: ${roomId}`,
-      0, 0.15, 0.72,
-      () => {},
-      0x45404b
-    );
-
-    addMenuButton(
-      `PLAYERS: ${players.length}`,
-      0, -0.02, 0.72,
-      () => {},
-      0x45404b
-    );
-
-    addMenuButton(
-      "CLOSE MENU",
-      0, -0.19, 0.72,
-      toggleMenu,
-      0x74343a
-    );
+    addMenuButton(`ROOM: ${roomId}`, 0, 0.15, 0.72, () => {}, 0x45404b);
+    addMenuButton(`PLAYERS: ${players.length}`, 0, -0.02, 0.72, () => {}, 0x45404b);
+    addMenuButton("CLOSE MENU", 0, -0.19, 0.72, toggleMenu, 0x74343a);
   }
 }
 
 function toggleMenu() {
   menuOpen = !menuOpen;
-
   if (menu) menu.visible = menuOpen;
-
   if (menuOpen) {
     refreshAdminMenu();
     setStatus("Wrist menu opened");
@@ -916,18 +1002,17 @@ function getGamepadButton(source, index) {
 
 function clickMenuWithRightController() {
   const origin = new THREE.Vector3();
-  rightController.getWorldPosition(origin);
+  controllerRight.getWorldPosition(origin);
 
   const direction = new THREE.Vector3(0, 0, -1);
-  direction.applyQuaternion(rightController.quaternion);
+  direction.applyQuaternion(controllerRight.getWorldQuaternion(
+    new THREE.Quaternion()
+  ));
 
   controllerRay.set(origin, direction);
-
   const hits = controllerRay.intersectObjects(menuButtons, false);
 
-  if (hits.length && hits[0].object.userData.action) {
-    hits[0].object.userData.action();
-  }
+  if (hits.length) hits[0].object.userData.action?.();
 }
 
 function activateTouchedButton(position) {
@@ -935,63 +1020,50 @@ function activateTouchedButton(position) {
 
   for (const button of menuButtons) {
     const bounds = new THREE.Box3().setFromObject(button);
-
     if (bounds.containsPoint(position)) {
       const now = performance.now();
-
       if (now - lastTouch > 350) {
         lastTouch = now;
         button.userData.action?.();
       }
-
       return;
     }
   }
 }
 
-function handleXRButtons(time, frame) {
+function handleXRButtons(frame) {
   const left = findInput("left");
   const right = findInput("right");
 
   const xPressed = getGamepadButton(left, 4);
-
-  if (xPressed && !previousX) {
-    toggleMenu();
-  }
-
+  if (xPressed && !previousX) toggleMenu();
   previousX = xPressed;
 
   const triggerPressed = getGamepadButton(right, 0);
-
   if (triggerPressed && !previousTrigger && menuOpen) {
     clickMenuWithRightController();
   }
-
   previousTrigger = triggerPressed;
 
-  // Quest hand-tracking fingertip selection
   if (menuOpen && right?.hand && frame) {
     const joint = right.hand.get("index-finger-tip");
     const referenceSpace = renderer.xr.getReferenceSpace();
 
     if (joint && referenceSpace) {
       const pose = frame.getJointPose(joint, referenceSpace);
-
       if (pose) {
-        const tip = new THREE.Vector3(
+        activateTouchedButton(new THREE.Vector3(
           pose.transform.position.x,
           pose.transform.position.y,
           pose.transform.position.z
-        );
-
-        activateTouchedButton(tip);
+        ));
       }
     }
   }
 }
 
 // ==========================================
-// MOVEMENT
+// ARM MOVEMENT AND NETWORK SYNC
 // ==========================================
 
 let velocity = new THREE.Vector3();
@@ -1021,17 +1093,14 @@ function applyHandPush(position, previous, pressed) {
 }
 
 function updateMovement(delta) {
-  const leftPosition = getHandPosition(leftController);
-  const rightPosition = getHandPosition(rightController);
+  const leftPosition = getHandPosition(controllerLeft);
+  const rightPosition = getHandPosition(controllerRight);
 
   const left = findInput("left");
   const right = findInput("right");
 
-  const leftGrip = getGamepadButton(left, 1);
-  const rightGrip = getGamepadButton(right, 1);
-
-  applyHandPush(leftPosition, previousLeft, leftGrip);
-  applyHandPush(rightPosition, previousRight, rightGrip);
+  applyHandPush(leftPosition, previousLeft, getGamepadButton(left, 1));
+  applyHandPush(rightPosition, previousRight, getGamepadButton(right, 1));
 
   previousLeft.copy(leftPosition);
   previousRight.copy(rightPosition);
@@ -1046,14 +1115,22 @@ function updateMovement(delta) {
 
   rig.position.x = THREE.MathUtils.clamp(rig.position.x, -14, 14);
   rig.position.z = THREE.MathUtils.clamp(rig.position.z, -14, 14);
-
   velocity.multiplyScalar(Math.pow(0.985, delta * 60));
 
-  leftHand.position.copy(leftPosition);
-  rightHand.position.copy(rightPosition);
+  leftHandMarker.position.copy(leftPosition);
+  rightHandMarker.position.copy(rightPosition);
+
+  // Convert headset and controller world positions into rig-local positions.
+  const headWorld = new THREE.Vector3();
+  camera.getWorldPosition(headWorld);
+
+  const headLocal = rig.worldToLocal(headWorld.clone());
+  const leftLocal = rig.worldToLocal(leftPosition.clone());
+  const rightLocal = rig.worldToLocal(rightPosition.clone());
+
+  updateAvatarPose(localAvatar, headLocal, leftLocal, rightLocal);
 
   const now = performance.now();
-
   if (now - lastMoveSend > 50) {
     lastMoveSend = now;
 
@@ -1088,7 +1165,6 @@ function updateTelekinesis() {
 
   const position = new THREE.Vector3();
   camera.getWorldPosition(position);
-
   position.add(direction.multiplyScalar(1.8));
 
   send({
@@ -1104,26 +1180,21 @@ function updateTelekinesis() {
 // MAP VOTING
 // ==========================================
 
-function setupVoting() {
-  const votes = [
-    ["voteForest", "Yellow Hall"],
-    ["voteCaves", "Abandoned School"],
-    ["voteFacility", "Red Tunnels"]
-  ];
+const votes = [
+  ["voteForest", "Yellow Hall"],
+  ["voteCaves", "Abandoned School"],
+  ["voteFacility", "Red Tunnels"]
+];
 
-  for (const [id, mapName] of votes) {
-    const button = document.getElementById(id);
-    if (!button) continue;
+for (const [id, mapName] of votes) {
+  const button = document.getElementById(id);
+  if (!button) continue;
 
-    button.textContent = mapName;
-
-    button.addEventListener("click", () => {
-      send({ type: "vote", map: mapName });
-    });
-  }
+  button.textContent = mapName;
+  button.addEventListener("click", () => {
+    send({ type: "vote", map: mapName });
+  });
 }
-
-setupVoting();
 
 // ==========================================
 // ENTER VR
@@ -1147,9 +1218,7 @@ if (enterButton) {
 
       const session = await navigator.xr.requestSession("immersive-vr", {
         optionalFeatures: [
-          "local-floor",
-          "bounded-floor",
-          "hand-tracking"
+          "local-floor", "bounded-floor", "hand-tracking"
         ]
       });
 
@@ -1187,6 +1256,16 @@ function desktopMovement(delta) {
   if (keys.s) rig.position.z += delta * 3;
   if (keys.a) rig.position.x -= delta * 3;
   if (keys.d) rig.position.x += delta * 3;
+
+  camera.position.set(0, 1.6, 0);
+
+  const headLocal = new THREE.Vector3(0, 1.6, 0);
+  updateAvatarPose(
+    localAvatar,
+    headLocal,
+    new THREE.Vector3(-0.9, 0.7, -0.2),
+    new THREE.Vector3(0.9, 0.7, -0.2)
+  );
 }
 
 // ==========================================
@@ -1203,14 +1282,13 @@ function animate(time, frame) {
   const delta = Math.min(clock.getDelta(), 0.04);
 
   if (renderer.xr.isPresenting) {
-    handleXRButtons(time, frame);
+    handleXRButtons(frame);
     updateMovement(delta);
   } else {
     desktopMovement(delta);
   }
 
   updateTelekinesis();
-
   renderer.render(scene, camera);
 }
 
