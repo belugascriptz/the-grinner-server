@@ -42,6 +42,13 @@ let previousHands = [null, null];
 let gameStarted = false;
 
 // =====================================
+// HAND REACH SETTINGS
+// =====================================
+
+const HAND_REACH_OFFSET = 0.25;
+const GROUND_TOUCH_HEIGHT = 0.45;
+
+// =====================================
 // LOADING SCREEN
 // =====================================
 
@@ -125,7 +132,7 @@ for (let i = 0; i < 7; i++) {
 }
 
 // =====================================
-// SIMPLE CHARACTER MODEL
+// CHARACTER MODEL
 // =====================================
 
 function makeSphere(parent, radius, material, position, scale = [1, 1, 1]) {
@@ -192,7 +199,7 @@ function makeAvatar(color, monster = false) {
   }
 
   if (!monster) {
-    // Simple eyes
+    // Eyes
     for (const side of [-1, 1]) {
       makeSphere(
         group, 0.035, white,
@@ -207,7 +214,7 @@ function makeAvatar(color, monster = false) {
       );
     }
 
-    // Small mouth
+    // Mouth
     makeSphere(
       group, 0.025, dark,
       [0, 0.72, -0.185],
@@ -215,7 +222,7 @@ function makeAvatar(color, monster = false) {
     );
 
   } else {
-    // Grinner's dark eye
+    // Grinner eye
     makeSphere(
       group, 0.065, dark,
       [-0.075, 0.81, -0.16]
@@ -228,7 +235,7 @@ function makeAvatar(color, monster = false) {
       [-0.075, 0.81, -0.215]
     );
 
-    // Red patch around other eye
+    // Eye patch
     makeSphere(
       group, 0.07, red,
       [0.08, 0.81, -0.15],
@@ -270,7 +277,7 @@ function makeAvatar(color, monster = false) {
     }
   }
 
-  // Long thin arms and large simple hands
+  // Arms and hands
   const arms = [];
   const hands = [];
 
@@ -305,7 +312,6 @@ function makeAvatar(color, monster = false) {
     }
   }
 
-  // Smaller overall character
   group.scale.set(0.72, 0.72, 0.72);
 
   group.userData.hands = hands;
@@ -317,7 +323,7 @@ function makeAvatar(color, monster = false) {
 }
 
 // =====================================
-// UPDATE ARMS
+// UPDATE ARMS AND HANDS
 // =====================================
 
 function updateAvatarHand(avatar, index, position) {
@@ -332,12 +338,19 @@ function updateAvatarHand(avatar, index, position) {
   const hand = avatar.userData.hands[index];
   const arm = avatar.userData.arms[index];
 
-  hand.position.copy(position);
+  // Give the virtual hand extra downward reach.
+  const adjustedPosition = position.clone();
+  adjustedPosition.y -= HAND_REACH_OFFSET;
 
-  const direction = position.clone().sub(shoulder);
+  hand.position.copy(adjustedPosition);
+
+  const direction = adjustedPosition.clone().sub(shoulder);
   const length = direction.length();
 
-  arm.position.copy(shoulder).add(position).multiplyScalar(0.5);
+  arm.position.copy(shoulder)
+    .add(adjustedPosition)
+    .multiplyScalar(0.5);
+
   arm.scale.y = Math.max(length, 0.05);
 
   arm.quaternion.setFromUnitVectors(
@@ -518,7 +531,10 @@ function updateRemotePlayers(players) {
     handData.forEach((hand, index) => {
       if (!hand) return;
 
-      const worldPosition = new THREE.Vector3(hand.x, hand.y, hand.z);
+      const worldPosition = new THREE.Vector3(
+        hand.x, hand.y, hand.z
+      );
+
       const localPosition = avatar.worldToLocal(worldPosition);
 
       updateAvatarHand(avatar, index, localPosition);
@@ -580,7 +596,6 @@ function updateMovement(delta) {
     controllers.forEach((controller, index) => {
       const localHand = controller.position.clone();
 
-      // Convert hand position into the scaled avatar's local space.
       const avatarHand = localHand.clone()
         .sub(localAvatar.position)
         .divide(localAvatar.scale);
@@ -592,8 +607,11 @@ function updateMovement(delta) {
       if (previousHands[index]) {
         const movement = localHand.clone().sub(previousHands[index]);
 
-        // Push off the floor to move the player.
-        if (worldHand.y < 0.24 && movement.length() > 0.001) {
+        // Register ground contact from a higher hand position.
+        if (
+          worldHand.y < GROUND_TOUCH_HEIGHT &&
+          movement.length() > 0.001
+        ) {
           rig.position.addScaledVector(movement, -1.5);
         }
       }
@@ -701,6 +719,7 @@ enterGameButton.onclick = async () => {
 
     previousHands = [null, null];
     velocity.set(0, 0, 0);
+    rig.position.set(0, 0, 0);
 
     gameStarted = true;
     loading.remove();
