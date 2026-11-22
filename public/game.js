@@ -1,105 +1,202 @@
-import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js";
-import { VRButton } from "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/webxr/VRButton.js";
+import * as THREE from "three";
 
-const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x77715d);
-scene.fog = new THREE.Fog(0x77715d, 12, 45);
-const camera = new THREE.PerspectiveCamera(70, innerWidth/innerHeight, .1, 100);
-camera.position.set(0, 1.6, 5);
-const renderer = new THREE.WebGLRenderer({antialias:true});
-renderer.setSize(innerWidth, innerHeight);
-renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-renderer.xr.enabled = true;
-document.body.appendChild(renderer.domElement);
-document.body.appendChild(VRButton.createButton(renderer));
+const statusEl = document.getElementById("status");
+const playersEl = document.getElementById("players");
+const mapEl = document.getElementById("mapName");
+const errorEl = document.getElementById("error");
 
-scene.add(new THREE.HemisphereLight(0xd9d2b9, 0x29251e, 2));
-const light = new THREE.DirectionalLight(0xffffff, 1.5); light.position.set(3,8,4); scene.add(light);
-const floor = new THREE.Mesh(new THREE.PlaneGeometry(50,50), new THREE.MeshStandardMaterial({color:0x77704d}));
-floor.rotation.x = -Math.PI/2; scene.add(floor);
-const wallMat = new THREE.MeshStandardMaterial({color:0xb8ae72});
-function wall(x,y,z,w,h,d){const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),wallMat);m.position.set(x,y,z);scene.add(m);return m}
-wall(0,2,-10,20,4,.5); wall(-10,2,0,.5,4,20); wall(10,2,0,.5,4,20);
-wall(-4,2,-5,.4,4,6); wall(4,2,-7,.4,4,5);
-
-// Placeholder Grinner model blockout.
-const grinner = new THREE.Group(), white = new THREE.MeshStandardMaterial({color:0xf1eee8});
-const dark = new THREE.MeshStandardMaterial({color:0x120e0e}), red = new THREE.MeshStandardMaterial({color:0x7e1118});
-const body = new THREE.Mesh(new THREE.CapsuleGeometry(.42,.9,4,8),white); body.position.y=1.25; grinner.add(body);
-const head = new THREE.Mesh(new THREE.SphereGeometry(.48,16,12),white); head.position.y=2.15; grinner.add(head);
-const eye = new THREE.Mesh(new THREE.SphereGeometry(.09,12,8),dark); eye.position.set(-.18,2.25,.42); grinner.add(eye);
-const dot = new THREE.Mesh(new THREE.SphereGeometry(.025,8,6),red); dot.position.set(-.18,2.25,.505); grinner.add(dot);
-const wound = new THREE.Mesh(new THREE.SphereGeometry(.12,12,8),red); wound.position.set(.2,2.22,.42); grinner.add(wound);
-const smile = new THREE.Mesh(new THREE.BoxGeometry(.48,.07,.06),dark); smile.position.set(.02,1.98,.45); grinner.add(smile);
-for(let i=0;i<5;i++){const tooth=new THREE.Mesh(new THREE.ConeGeometry(.035,.09,4),white);tooth.position.set(-.17+i*.085,1.94,.49);tooth.rotation.z=Math.PI;grinner.add(tooth)}
-grinner.position.set(0,0,-7); scene.add(grinner);
-
-const socket = window.io(), remote = new Map();
-let dummies = [], latestPlayers = [], myId = null, isMonster = false;
-const status = document.getElementById("status"), playersEl = document.getElementById("players");
-const roundEl = document.getElementById("round"), hitOverlay = document.getElementById("hitOverlay");
-const maps = ["Yellow Hall","Abandoned School","Red Tunnels"]; let mapIndex = 0;
-function avatar(color=0x343434){
- const g=new THREE.Group(), mat=new THREE.MeshStandardMaterial({color});
- const torso=new THREE.Mesh(new THREE.CapsuleGeometry(.25,.55,3,7),mat);torso.position.y=1.05;g.add(torso);
- const h=new THREE.Mesh(new THREE.SphereGeometry(.2,10,8),mat);h.position.y=1.55;g.add(h);return g;
+function showError(message) {
+  errorEl.style.display = "block";
+  errorEl.textContent = "GAME ERROR: " + message;
+  statusEl.textContent = "Game failed to start";
 }
-function nearestTarget(){
- const mine=latestPlayers.find(p=>p.id===myId); if(!mine)return null;
- let best=null,dist=Infinity;
- for(const p of latestPlayers){if(p.id===myId)continue;const d=Math.hypot(p.x-mine.x,p.y-mine.y,p.z-mine.z);if(d<dist){dist=d;best=p}}
- return best && dist<=4.5 ? best : null;
-}
-function impactMark(pos){
- // Stylized dark-red scuff decal, not a wound or injury.
- const decal=new THREE.Mesh(new THREE.CircleGeometry(.28,16),new THREE.MeshBasicMaterial({color:0x64131b,transparent:true,opacity:.78,depthWrite:false}));
- decal.position.set(pos.x,Math.max(.2,pos.y),pos.z); decal.lookAt(pos.x,Math.max(.2,pos.y),pos.z-1);
- scene.add(decal); setTimeout(()=>{scene.remove(decal);decal.geometry.dispose();decal.material.dispose()},7000);
-}
-socket.on("connect",()=>{myId=socket.id;status.textContent="Connected to server"});
-socket.on("disconnect",()=>status.textContent="Disconnected");
-socket.on("room-full",()=>status.textContent="Server full");
-socket.on("state",s=>{
- latestPlayers=s.players; playersEl.textContent=`Players: ${s.players.length} / ${s.slots}`;
- roundEl.textContent=`Round ${s.round} — ${s.currentMap}`;
- const me=s.players.find(p=>p.id===myId); isMonster=!!(me&&me.monster);
- document.getElementById("monsterPanel").hidden=!isMonster;
- status.textContent=isMonster?"YOU ARE THE GRINNER":"Survive. The Grinner is hunting.";
- for(const p of s.players){
-   if(p.id===myId)continue;
-   if(!remote.has(p.id)){const a=avatar(p.monster?0x991d1d:0x303030);scene.add(a);remote.set(p.id,a)}
-   remote.get(p.id).position.set(p.x,p.y-1,p.z);
- }
- for(const [id,a] of remote){if(!s.players.some(p=>p.id===id)){scene.remove(a);remote.delete(id)}}
-});
-socket.on("dummies",list=>{dummies.forEach(d=>scene.remove(d));dummies=[];list.forEach(p=>{const a=avatar(0x777777);a.position.set(p.x,0,p.z);scene.add(a);dummies.push(a)})});
-socket.on("round-start",r=>status.textContent=`Round ${r.round} started!`);
-socket.on("monster-hit",hit=>{
- hitOverlay.classList.remove("flash"); void hitOverlay.offsetWidth; hitOverlay.classList.add("flash");
- if(hit.action==="throw"){camera.position.x+=(camera.position.x-hit.from.x)*.7;camera.position.z+=(camera.position.z-hit.from.z)*.7;impactMark(hit.impact)}
- if(hit.action==="punch"){camera.position.x+=(camera.position.x-hit.from.x)*.35;camera.position.z+=(camera.position.z-hit.from.z)*.35}
- if(hit.action==="grab"){status.textContent="The Grinner grabbed you!";setTimeout(()=>status.textContent="Get away!",900)}
- if(hit.action==="glitch"){status.textContent="GLITCHED — respawning…";camera.position.set(0,1.6,5);setTimeout(()=>status.textContent="Keep moving!",1200)}
-});
-socket.on("monster-action-effect",e=>{if(e.action==="throw"||e.action==="punch"){const p=latestPlayers.find(x=>x.id===e.targetId);if(p)impactMark({x:p.x,y:1.8,z:p.z})}});
-document.getElementById("vote").onclick=()=>{mapIndex=(mapIndex+1)%maps.length;socket.emit("vote-map",maps[mapIndex]);document.getElementById("vote").textContent="Vote: "+maps[mapIndex]};
-document.getElementById("start").onclick=()=>socket.emit("start-round");
-document.getElementById("owner").onclick=()=>{const p=document.getElementById("ownerPanel");p.hidden=!p.hidden};
-document.getElementById("spawn").onclick=()=>socket.emit("owner-spawn-dummies",{key:document.getElementById("ownerKey").value,count:document.getElementById("dummyCount").value});
-document.querySelectorAll("[data-action]").forEach(btn=>btn.addEventListener("click",()=>{
- const target=nearestTarget(); if(!target){status.textContent="No player close enough";return}
- socket.emit("monster-action",{action:btn.dataset.action,targetId:target.id});
-}));
 
-// Experimental controller-push movement. Full Gorilla Tag locomotion/physics is not implemented yet.
-const controllers=[renderer.xr.getController(0),renderer.xr.getController(1)];
-controllers.forEach(c=>{scene.add(c);c.addEventListener("selectstart",()=>{if(!isMonster)return;const target=nearestTarget();if(target)socket.emit("monster-action",{action:"punch",targetId:target.id})})});
-controllers.forEach(c=>{c.addEventListener("squeezestart",()=>{if(!isMonster)return;const target=nearestTarget();if(target)socket.emit("monster-action",{action:"throw",targetId:target.id})})});
-renderer.setAnimationLoop(()=>{
- if(renderer.xr.isPresenting){
-   controllers.forEach(c=>{const p=new THREE.Vector3();c.getWorldPosition(p);if(c.userData.last){const delta=p.clone().sub(c.userData.last);if(delta.length()<.25)camera.position.sub(delta.multiplyScalar(.8))}c.userData.last=p});
-   const pos=camera.position;socket.emit("move",{x:pos.x,y:pos.y,z:pos.z});
- }
- renderer.render(scene,camera);
+let scene, camera, renderer;
+try {
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x77715d);
+  scene.fog = new THREE.Fog(0x77715d, 18, 55);
+
+  camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 100);
+  camera.position.set(0, 1.65, 5);
+
+  renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.xr.enabled = true;
+  renderer.xr.setReferenceSpaceType("local-floor");
+  document.body.appendChild(renderer.domElement);
+
+  scene.add(new THREE.HemisphereLight(0xe8e0c5, 0x332b20, 2.2));
+  const sun = new THREE.DirectionalLight(0xffffff, 1.7);
+  sun.position.set(4, 9, 5);
+  scene.add(sun);
+
+  const floor = new THREE.Mesh(
+    new THREE.PlaneGeometry(50, 50),
+    new THREE.MeshStandardMaterial({ color: 0x625d43, roughness: 1 })
+  );
+  floor.rotation.x = -Math.PI / 2;
+  floor.position.y = 0;
+  scene.add(floor);
+
+  const wallMat = new THREE.MeshStandardMaterial({ color: 0xb8ae72, roughness: 1 });
+  function wall(x, y, z, w, h, d) {
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), wallMat);
+    mesh.position.set(x, y, z);
+    scene.add(mesh);
+  }
+  wall(0, 2, -10, 20, 4, 0.5);
+  wall(-10, 2, 0, 0.5, 4, 20);
+  wall(10, 2, 0, 0.5, 4, 20);
+  wall(0, 4, 0, 20, 0.35, 20);
+
+  // Lobby map voting boards.
+  const boardColors = [0xd4bd55, 0x74839a, 0x873e3e];
+  const boardNames = ["YELLOW HALL", "ABANDONED SCHOOL", "RED TUNNELS"];
+  const boards = [];
+  for (let i = 0; i < 3; i++) {
+    const board = new THREE.Mesh(
+      new THREE.BoxGeometry(2.3, 1.35, 0.12),
+      new THREE.MeshStandardMaterial({ color: boardColors[i], roughness: 0.85 })
+    );
+    board.position.set((i - 1) * 3.2, 1.8, -7.8);
+    scene.add(board);
+    boards.push(board);
+    const frame = new THREE.Mesh(
+      new THREE.BoxGeometry(2.45, 1.5, 0.08),
+      new THREE.MeshStandardMaterial({ color: 0x29251e })
+    );
+    frame.position.set((i - 1) * 3.2, 1.8, -7.9);
+    scene.add(frame);
+    board.position.z = -7.82;
+  }
+
+  // Simple Grinner display model, intentionally non-graphic.
+  const monster = new THREE.Group();
+  const pale = new THREE.MeshStandardMaterial({ color: 0xf1eee8, roughness: 0.9 });
+  const dark = new THREE.MeshStandardMaterial({ color: 0x100d0d });
+  const red = new THREE.MeshStandardMaterial({ color: 0x851c24 });
+  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.42, 0.8, 4, 8), pale);
+  torso.position.y = 1.15;
+  monster.add(torso);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.48, 20, 16), pale);
+  head.position.y = 2.05;
+  monster.add(head);
+  const eye = new THREE.Mesh(new THREE.SphereGeometry(0.09, 12, 10), dark);
+  eye.position.set(-0.18, 2.13, 0.43);
+  monster.add(eye);
+  const eyeDot = new THREE.Mesh(new THREE.SphereGeometry(0.03, 10, 8), red);
+  eyeDot.position.set(-0.18, 2.13, 0.515);
+  monster.add(eyeDot);
+  const otherEye = new THREE.Mesh(new THREE.SphereGeometry(0.11, 12, 10), red);
+  otherEye.position.set(0.2, 2.12, 0.42);
+  monster.add(otherEye);
+  const smile = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.075, 0.06), dark);
+  smile.position.set(0.02, 1.89, 0.45);
+  monster.add(smile);
+  monster.position.set(0, 0, -5.5);
+  scene.add(monster);
+
+  // Decorative computer prop.
+  const desk = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.8, 0.7), new THREE.MeshStandardMaterial({ color: 0x37342b }));
+  desk.position.set(-5.5, 0.4, -5);
+  scene.add(desk);
+  const screen = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.72, 0.08), new THREE.MeshStandardMaterial({ color: 0x263b3a, emissive: 0x102323 }));
+  screen.position.set(-5.5, 1.18, -5.28);
+  scene.add(screen);
+
+  statusEl.textContent = "Lobby loaded";
+} catch (err) {
+  showError(err?.stack || err?.message || String(err));
+  throw err;
+}
+
+// Native WebSocket client, matching the server's `ws` package.
+let socket = null;
+let myId = null;
+const remotePlayers = new Map();
+const wsProtocol = location.protocol === "https:" ? "wss:" : "ws:";
+try {
+  socket = new WebSocket(`${wsProtocol}//${location.host}`);
+  socket.addEventListener("open", () => { statusEl.textContent = "Connected to lobby"; });
+  socket.addEventListener("message", event => {
+    let msg;
+    try { msg = JSON.parse(event.data); } catch { return; }
+    if (msg.type === "welcome") myId = msg.id;
+    if (msg.type === "state") {
+      playersEl.textContent = `ROOM: ${msg.count} / ${msg.slots}`;
+      mapEl.textContent = `MAP: ${(msg.currentMap || "Yellow Hall").toUpperCase()}`;
+      const alive = new Set();
+      for (const p of msg.players || []) {
+        if (p.id === myId) continue;
+        alive.add(p.id);
+        if (!remotePlayers.has(p.id)) {
+          const material = new THREE.MeshStandardMaterial({ color: p.color || 0x777777 });
+          const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.27, 0.55, 3, 7), material);
+          body.position.y = 1;
+          const avatar = new THREE.Group();
+          avatar.add(body);
+          scene.add(avatar);
+          remotePlayers.set(p.id, avatar);
+        }
+        const avatar = remotePlayers.get(p.id);
+        avatar.position.set(p.x, 0, p.z);
+        avatar.children[0].material.color.set(p.color || "#777777");
+      }
+      for (const [id, avatar] of remotePlayers) {
+        if (!alive.has(id)) {
+          scene.remove(avatar);
+          remotePlayers.delete(id);
+        }
+      }
+    }
+  });
+  socket.addEventListener("close", () => { statusEl.textContent = "Offline — lobby still visible"; });
+  socket.addEventListener("error", () => { statusEl.textContent = "Server connection unavailable — lobby still visible"; });
+} catch (err) {
+  statusEl.textContent = "Offline — lobby still visible";
+}
+
+const maps = ["Yellow Hall", "Abandoned School", "Red Tunnels"];
+let mapIndex = 0;
+document.getElementById("vote").addEventListener("click", () => {
+  const choice = maps[mapIndex];
+  if (socket && socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify({ type: "vote", choice }));
+  document.getElementById("vote").textContent = "VOTED: " + choice.toUpperCase();
+  mapIndex = (mapIndex + 1) % maps.length;
 });
-addEventListener("resize",()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
+
+document.getElementById("enterVR").addEventListener("click", async () => {
+  try {
+    if (!navigator.xr) {
+      statusEl.textContent = "WebXR unavailable — open this page in Quest Browser";
+      return;
+    }
+    const supported = await navigator.xr.isSessionSupported("immersive-vr");
+    if (!supported) {
+      statusEl.textContent = "Immersive VR is not supported by this browser";
+      return;
+    }
+    const session = await navigator.xr.requestSession("immersive-vr", {
+      optionalFeatures: ["local-floor", "bounded-floor"]
+    });
+    await renderer.xr.setSession(session);
+    statusEl.textContent = "VR connected";
+  } catch (err) {
+    showError(err?.message || String(err));
+  }
+});
+
+const clock = new THREE.Clock();
+renderer.setAnimationLoop(() => {
+  const t = clock.getElapsedTime();
+  monster.rotation.y = Math.sin(t * 0.25) * 0.08;
+  renderer.render(scene, camera);
+});
+
+window.addEventListener("resize", () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});

@@ -1,4 +1,13 @@
-*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#171713;color:#f3eee4;font-family:Arial,sans-serif}canvas{display:block}.brand{font-weight:900;letter-spacing:3px;font-size:18px}.brand span{color:#d33}.buttons{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}button{background:#a32626;color:white;border:0;border-radius:7px;padding:9px 11px;font-weight:bold}button:active{filter:brightness(1.4)}#hud{position:fixed;z-index:5;top:12px;left:12px;max-width:350px;background:#111d;padding:12px;border:1px solid #ffffff30;border-radius:10px;backdrop-filter:blur(5px)}#status,#round,#players,#notice{font-size:13px;margin-top:6px;color:#ddd}#ownerPanel,#monsterPanel{margin-top:10px;padding-top:8px;border-top:1px solid #ffffff33}input{width:100%;padding:8px;margin:4px 0;border-radius:5px;border:0}small{display:block;color:#bbb;margin-top:5px}#crosshair{position:fixed;left:50%;top:50%;width:5px;height:5px;border-radius:50%;background:#fff8;pointer-events:none}#hitOverlay{position:fixed;inset:0;z-index:4;pointer-events:none;opacity:0;background:radial-gradient(ellipse at center,transparent 20%,#8e101caa 100%)}#hitOverlay.flash{animation:flash .55s ease-out}@keyframes flash{0%{opacity:.95}100%{opacity:0}}@media(max-width:600px){#hud{max-width:calc(100% - 24px)}.brand{font-size:15px}button{padding:8px}}
-#hud {
-  display: none !important;
-}
+*{box-sizing:border-box}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#77715d;color:#f4f0e6;font-family:Arial,sans-serif}
+canvas{display:block;width:100%;height:100%}
+#hud{position:fixed;z-index:5;top:12px;left:12px;padding:12px 14px;background:rgba(15,14,12,.82);border:1px solid rgba(255,255,255,.18);border-radius:10px;max-width:min(92vw,340px)}
+.brand{font-size:18px;font-weight:900;letter-spacing:3px;margin-bottom:8px}
+.brand span{color:#df4545}
+#status,#players,#mapName{font-size:13px;margin:5px 0}
+.buttons{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+button{border:0;border-radius:7px;padding:10px 13px;background:#d9cf9b;color:#171612;font-weight:800}
+#enterVR{background:#d64a42;color:white}
+#notice{font-size:11px;opacity:.8;margin-top:9px}
+#error{position:fixed;z-index:8;left:12px;right:12px;bottom:12px;color:#fff;background:rgba(130,0,0,.9);padding:10px;border-radius:8px;display:none;white-space:pre-wrap;font-size:12px}
+@media(max-width:600px){#hud{top:8px;left:8px;padding:10px}.brand{font-size:15px}}
