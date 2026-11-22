@@ -1,4 +1,12 @@
-const camera = new THREE.PerspectiveCamera(
+import * as THREE from "three";
+import { Reflector } from "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/objects/Reflector.js";
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x17191b);
+
+const statusEl = document.getElementById("status");
+const roomEl = document.getElementById("room");
+const enterButton = document.getElementById("enterVR");const camera = new THREE.PerspectiveCamera(
   70, window.innerWidth / window.innerHeight, 0.1, 100
 );
 camera.position.set(0, 1.6, 3);
