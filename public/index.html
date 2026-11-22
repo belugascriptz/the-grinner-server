@@ -1,27 +1,27 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-  <title>The Grinner VR</title>
-  <link rel="stylesheet" href="/style.css">
-  <script type="importmap">
-    {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"}}
-  </script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>The Grinner VR</title>
+<link rel="stylesheet" href="/style.css">
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"}}
+</script>
 </head>
 <body>
-  <div id="hud">
-    <div class="brand">THE GRINNER <span>VR</span></div>
-    <div id="status">Starting game…</div>
-    <div id="players">ROOM: 1 / 12</div>
-    <div id="mapName">MAP: YELLOW HALL</div>
-    <div class="buttons">
-      <button id="enterVR">ENTER VR</button>
-      <button id="vote">VOTE MAP</button>
-    </div>
-    <div id="notice">Open in Meta Quest Browser and press ENTER VR.</div>
+<div id="hud">
+  <div class="brand">THE GRINNER <span>VR</span></div>
+  <div id="status">Building the lobby…</div>
+  <div id="roomCount">ROOM: 1 / 12</div>
+  <div id="mapLabel">MAP VOTE: YELLOW HALL</div>
+  <div class="buttons">
+    <button id="enterVR">ENTER VR</button>
+    <button id="desktopHelp">CONTROLS</button>
   </div>
-  <div id="error"></div>
-  <script type="module" src="/game.js"></script>
+  <div id="help">Quest: use both controllers to push off surfaces and point at a map board, then press trigger. Desktop: WASD + mouse.</div>
+</div>
+<div id="error"></div>
+<script type="module" src="/game.js"></script>
 </body>
 </html>
